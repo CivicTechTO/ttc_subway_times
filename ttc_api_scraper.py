@@ -75,7 +75,8 @@ class TTCSubwayScraper( object ):
                 data = self.get_API_response(line_id, station_id)
                 if data.get('ntasData', None) is None or data.get('ntasData', None) == []:
                     errmsg = 'No data for line {line}, station {station}'
-                    self.logger.error(errmsg.format({'line':line_id, 'station':station_id}))
+                    self.logger.error(errmsg.format(line=line_id, station=station_id))
+                    continue
                 request_id = self.insert_request_info(data, line_id, station_id)
                 self.insert_ntas_data(data['ntasData'], request_id)
 
