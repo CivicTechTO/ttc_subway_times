@@ -1,8 +1,9 @@
 import logging
 import sys
-import requests #to handle http requests to the API
+import requests #to handle http requests to the API 
 from psycopg2 import connect #Connect to local PostgreSQL db
 
+#Not used anymore
 class MissingDataException( TypeError):
     pass
 
@@ -28,8 +29,8 @@ class TTCSubwayScraper( object ):
         r = requests.get(self.BASE_URL, params = payload)
         try:
             r.raise_for_status()
-        except HTTPError as err:
-            self.logger.FATAL(err)
+        except request.exceptions.HTTPError as err:
+            self.logger.critical(err)
             sys.exit(0)
         return r.json()
 
@@ -39,12 +40,7 @@ class TTCSubwayScraper( object ):
         request_row['stationid'] = station_id
         request_row['lineid'] = line_id
         request_row['all_stations'] = data['allStations']
-        try:
-            request_row['create_date'] = data['ntasData'][0]['createDate'].replace('T', ' ')
-        except TypeError as err:
-            self.logger.ERROR(err)
-            self.logger.ERROR(data)
-            raise MissingDataException()
+        request_row['create_date'] = data['ntasData'][0]['createDate'].replace('T', ' ')
         cursor = self.con.cursor()
         cursor.execute("INSERT INTO public.requests(data_, stationid, lineid, all_stations, create_date)"
                        "VALUES(%(data_)s, %(stationid)s, %(lineid)s, %(all_stations)s, %(create_date)s)"
@@ -77,15 +73,15 @@ class TTCSubwayScraper( object ):
         for line_id, stations in self.LINES.items():
             for station_id in stations:
                 data = self.get_API_response(line_id, station_id)
-                try:
-                    request_id = self.insert_request_info(data, line_id, station_id)
-                except MissingDataException:
-                    continue
+                if data.get('ntasData', None) is None or data.get('ntasData', None) == []:
+                    errmsg = 'No data for line {line}, station {station}'
+                    self.logger.error(errmsg.format({'line':line_id, 'station':station_id}))
+                request_id = self.insert_request_info(data, line_id, station_id)
                 self.insert_ntas_data(data['ntasData'], request_id)
 
 if __name__ == '__main__':
     FORMAT = '%(asctime)-15s %(message)s'
-    logging.basicConfig(level=logging.INFO, format=FORMAT)
+    logging.basicConfig(level=logging.ERROR, format=FORMAT, filename='scraper.log')
     LOGGER = logging.getLogger(__name__)
     con = connect(database='ttc',
                   user='rad')
