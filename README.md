@@ -18,7 +18,10 @@ The database engine used to store the data is PostgreSQL, you can find instructi
 
 ### Automating the scraper runs
 
-The scraper runs with a `python ttc_scraper_api.py` command. It doesn't have any command line options (at the moment). We've been running this from 6AM to 1AM, so add the below to cron if you use UNIX (Mac or Linux). Don't forget to change `/path/to/ttc_api_scraper.py`
+The scraper runs with a `python ttc_scraper_api.py` command. It doesn't have any command line options (at the moment). We've been running this from 6AM to 1AM
+
+#### Unix
+If you use UNIX (Mac or Linux), add the below to cron. Don't forget to change `/path/to/ttc_api_scraper.py`
 
 `TODO`
 
