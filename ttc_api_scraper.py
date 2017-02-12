@@ -144,8 +144,12 @@ if __name__ == '__main__':
     ch.setFormatter(formatter)
     LOGGER.addHandler(ch)
 
-    con = connect(database='ttc',
+    try:
+        con = connect(database='ttc',
                   user='postgres')  # adjust for local setup
-    scraper = TTCSubwayScraper(LOGGER, con)
-    scraper.query_all_stations()
-    con.close()
+        scraper = TTCSubwayScraper(LOGGER, con)
+        scraper.query_all_stations()
+        con.close()
+    except Exception as err:
+        LOGGER.critical("Unhandled exception - quitting.")
+        LOGGER.critical(err)
