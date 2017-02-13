@@ -104,6 +104,32 @@ class TTCSubwayScraper( object ):
         self.logger.debug("Poll " + str(poll_id) + " ended at " + str(time) )
 
 
+    def check_for_missing_data( self, stationid, lineid, data):
+        if data is None:
+            return True
+        ntasData = data.get('ntasData')
+        if ntasData is None or ntasData ==[] :
+            return True
+
+        # there is data, so do more careful checks
+
+        # at interchange stations, the API returns trains on both lines, despite the fact that each line has a unique stationid
+        # So for interchange stations, make sure we have at least one observation on the right line!
+        interchanges = (9,10,22,30,47,48,50,64) 
+        # if we're not in an interchange station, we're done
+        if stationid not in interchanges:
+            return False 
+        # most general way to detect the problem is to check subwayLine field
+        linecodes = ("YUS", "BD", "", "SHEP")
+        # look for one train observed in the right direction
+        for record in ntasData:
+            if record['subwayLine'] == linecodes[lineid-1]:
+                return False
+
+        # none match
+        return True
+    
+
     def query_all_stations(self):
         poll_id = self.insert_poll_start( datetime.now() )
         retries = 3
@@ -111,18 +137,19 @@ class TTCSubwayScraper( object ):
             for station_id in stations:
                 for attempt in range(retries):
                     data = self.get_API_response(line_id, station_id)
-                    if not ( data is None or data.get('ntasData', None) is None or data.get('ntasData', None) == []):
+                    if not self.check_for_missing_data( station_id, line_id, data) :
                         break
                     else:
-                        if data is None:
-                            # for http and timeout errors, sleep 2s before retrying
-                            self.logger.debug("Sleeping 2s for request error ...")
-                            sleep(2)
-
                         self.logger.debug("Try " + str(attempt+1) + " for station " + str(station_id) + " failed.")
+                        #if data is None:
+                        # for http and timeout errors, sleep 2s before retrying
+                        self.logger.debug("Sleeping 2s  ...")
+                        sleep(2)
+
+
                             
 
-                if data is None or data.get('ntasData', None) is None or data.get('ntasData', None) == []:
+                if self.check_for_missing_data( station_id, line_id, data) :
                     errmsg = 'No data for line {line}, station {station}'
                     self.logger.error(errmsg.format(line=line_id, station=station_id))
                     self.logger.debug( errmsg.format(line=line_id, station=station_id) )
