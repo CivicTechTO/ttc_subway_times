@@ -1,10 +1,22 @@
 import logging
 import sys
 import requests #to handle http requests to the API 
+import aiohttp  # this lib replaces requests for asynchronous i/o
+import asyncio
+import async_timeout
 from psycopg2 import connect #Connect to local PostgreSQL db
 from datetime import datetime
 from time import sleep
 #import socket
+
+# Note - the package yarl, a dependency of aiohttp, breaks the library on version 0.9.4 and 0.9.5
+# So need to manually install 0.9.3 or try 0.9.6, which should fix the bug.
+# e.g. pip uninstall yarl; pip install yarl==0.9.3
+# see https://github.com/KeepSafe/aiohttp/issues/1635
+# Use virtualenv to avoid borking your system install of python
+
+# optimal performance may require installation of cchardet and aiodns packages
+# see  http://aiohttp.readthedocs.io/en/stable/index.html
 
 #Not used anymore
 class MissingDataException( TypeError):
@@ -15,6 +27,8 @@ class TTCSubwayScraper( object ):
              2: range(33, 64),
              4: range(64, 69)}
     BASE_URL = "http://www.ttc.ca/Subway/loadNtas.action"
+    #BASE_URL = 'http://www.ttc.ca/Subway/'
+   
     NTAS_SQL = """INSERT INTO public.ntas_data(\
             requestid, id, station_char, subwayline, system_message_type, \
             timint, traindirection, trainid, train_message) \
@@ -130,6 +144,84 @@ class TTCSubwayScraper( object ):
         return True
     
 
+    async def query_station_async(self, session, line_id, station_id ):
+        retries = 3
+        payload = {"subwayLine":line_id,
+                       "stationId":station_id,
+                       "searchCriteria":''}
+        for attempt in range(retries):
+            #with async_timeout.timeout(10):
+            try:
+                async with session.get(self.BASE_URL, params=payload, timeout=5) as resp:
+                    #data = None
+                    data = await resp.json()
+                    if self.check_for_missing_data(station_id, line_id, data):
+                        self.logger.debug("Missing data!")
+                        self.logger.debug("Try " + str(attempt+1) + " for station " + str(station_id) + " failed.")
+                        self.logger.debug("Sleeping 2s  ...")
+                        await asyncio.sleep(2)
+                        continue
+                    return data
+            except Exception as err:
+                self.logger.critical(err)
+                self.logger.debug("request error!")
+                self.logger.debug("Try " + str(attempt+1) + " for station " + str(station_id) + " failed.")
+                self.logger.debug("Sleeping 2s  ...")
+                await asyncio.sleep(2)
+                continue
+        return None
+
+
+    # async def qtest( self, session, line_id, station_id):
+    #     payload = {"subwayLine":line_id,
+    #                    "stationId":station_id,
+    #                    "searchCriteria":''}
+    #     async with session.get(self.BASE_URL, params=payload, timeout=10) as resp:
+    #         ret = await resp.json()
+    #         print(ret)
+    #         return ret
+
+    # async def qstest( self, loop):
+    #       async with aiohttp.ClientSession() as session:
+    #             tasks = []
+    #             task = asyncio.ensure_future(self.query_station_async(session, 1, 1))
+    #             tasks.append(task)
+    #             responses = await asyncio.gather(*tasks)
+    #             if self.check_for_missing_data( 1, 1, responses[0]) :
+    #                 errmsg = 'No data for line {line}, station {station}'
+    #                 self.logger.error(errmsg.format(line=1, station=1))
+    #                 self.logger.debug( errmsg.format(line=1, station=1) )
+    #             print( responses[0])
+
+    async def query_all_stations_async(self,loop):
+            poll_id = self.insert_poll_start(datetime.now())
+
+            # run requests simultaneously using asyncio
+            async with aiohttp.ClientSession() as session:
+                tasks = []
+                for line_id, stations in self.LINES.items():
+                    for station_id in stations:
+                        task = asyncio.ensure_future(self.query_station_async(session, line_id, station_id))
+                        tasks.append(task)
+                responses = await asyncio.gather(*tasks)
+
+            # check results and insert into db
+            for line_id, stations in self.LINES.items():
+                for station_id in stations:
+                    data = responses[station_id-1]  # may want to tweak this to check error codes etc
+                    if self.check_for_missing_data( station_id, line_id, data) :
+                        errmsg = 'No data for line {line}, station {station}'
+                        self.logger.error(errmsg.format(line=line_id, station=station_id))
+                        self.logger.debug( errmsg.format(line=line_id, station=station_id) )
+                        continue    
+                    request_id = self.insert_request_info(poll_id, data, line_id, station_id, datetime.now() )
+                    self.insert_ntas_data(data['ntasData'], request_id)
+        
+            self.update_poll_end( poll_id, datetime.now() )
+
+
+
+
     def query_all_stations(self):
         poll_id = self.insert_poll_start( datetime.now() )
         retries = 3
@@ -145,9 +237,7 @@ class TTCSubwayScraper( object ):
                         # for http and timeout errors, sleep 2s before retrying
                         self.logger.debug("Sleeping 2s  ...")
                         sleep(2)
-
-
-                            
+       
 
                 if self.check_for_missing_data( station_id, line_id, data) :
                     errmsg = 'No data for line {line}, station {station}'
@@ -175,7 +265,17 @@ if __name__ == '__main__':
         con = connect(database='ttc',
                   user='postgres')  # adjust for local setup
         scraper = TTCSubwayScraper(LOGGER, con)
-        scraper.query_all_stations()
+
+        # old synchronous i/o version
+        #scraper.query_all_stations()
+
+        # new asynchronous i/o version
+        loop = asyncio.get_event_loop()
+        future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
+        #future = asyncio.ensure_future( scraper.qstest(loop))
+        loop.run_until_complete( future )
+
+
         con.close()
     except Exception as err:
         LOGGER.critical("Unhandled exception - quitting.")
