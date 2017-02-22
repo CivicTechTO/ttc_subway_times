@@ -145,31 +145,35 @@ class TTCSubwayScraper( object ):
     
 
     async def query_station_async(self, session, line_id, station_id ):
-        retries = 3
+        retries = 4
         payload = {"subwayLine":line_id,
                        "stationId":station_id,
                        "searchCriteria":''}
         for attempt in range(retries):
             #with async_timeout.timeout(10):
             try:
+                rtime = datetime.now()
                 async with session.get(self.BASE_URL, params=payload, timeout=5) as resp:
                     #data = None
                     data = await resp.json()
+
                     if self.check_for_missing_data(station_id, line_id, data):
                         self.logger.debug("Missing data!")
                         self.logger.debug("Try " + str(attempt+1) + " for station " + str(station_id) + " failed.")
-                        self.logger.debug("Sleeping 2s  ...")
-                        await asyncio.sleep(2)
+                        if attempt < retries-1:
+                            self.logger.debug("Sleeping 2s  ...")
+                            await asyncio.sleep(2)
                         continue
-                    return data
+                    return (data, rtime)
             except Exception as err:
                 self.logger.critical(err)
                 self.logger.debug("request error!")
                 self.logger.debug("Try " + str(attempt+1) + " for station " + str(station_id) + " failed.")
-                self.logger.debug("Sleeping 2s  ...")
-                await asyncio.sleep(2)
+                if attempt < retries-1:
+                    self.logger.debug("Sleeping 2s  ...")
+                    await asyncio.sleep(2)
                 continue
-        return None
+        return (None, None)
 
 
     # async def qtest( self, session, line_id, station_id):
@@ -208,13 +212,13 @@ class TTCSubwayScraper( object ):
             # check results and insert into db
             for line_id, stations in self.LINES.items():
                 for station_id in stations:
-                    data = responses[station_id-1]  # may want to tweak this to check error codes etc
+                    (data, rtime) = responses[station_id-1]  # may want to tweak this to check error codes etc
                     if self.check_for_missing_data( station_id, line_id, data) :
                         errmsg = 'No data for line {line}, station {station}'
                         self.logger.error(errmsg.format(line=line_id, station=station_id))
                         self.logger.debug( errmsg.format(line=line_id, station=station_id) )
                         continue    
-                    request_id = self.insert_request_info(poll_id, data, line_id, station_id, datetime.now() )
+                    request_id = self.insert_request_info(poll_id, data, line_id, station_id, rtime )
                     self.insert_ntas_data(data['ntasData'], request_id)
         
             self.update_poll_end( poll_id, datetime.now() )
