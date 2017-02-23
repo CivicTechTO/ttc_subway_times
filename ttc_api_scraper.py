@@ -63,7 +63,7 @@ class TTCSubwayScraper( object ):
     def insert_request_info(self, poll_id, data, line_id, station_id, request_date):
         request_row = {}
         request_row['pollid'] = poll_id
-        request_row['request_date'] = request_date
+        request_row['request_date'] = str(request_date)
         request_row['data_'] = data['data']
         request_row['stationid'] = station_id
         request_row['lineid'] = line_id

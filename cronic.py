@@ -13,11 +13,14 @@ def run_blocking():
 	period = 10
 	while True:
 		st = datetime.now()
+		# sleep 5 mins then check time again if after operating hours
+		if ((st.hour >= 2 and st.minute > 15) or (st.hour >= 3)) and ((st.hour < 5) or (st.hour < 6 and st.minute < 45)): 
+			sleep(300)
+			print("After operating hours: " + str(st) + " -- Sleeping 5 mins.")
+			continue
+
 		subprocess.run("python ttc_api_scraper.py", shell = True)
 		et = datetime.now()
-		# quit if after operating hours
-		if et.hour > 2 & et.minute > 15 & et.hour < 4: 
-			exit()
 		delta = et-st
 		if(delta.seconds < period):
 			sleep(period - delta.seconds)
