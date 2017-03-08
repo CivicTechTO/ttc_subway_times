@@ -1,7 +1,22 @@
 import logging
 import sys
 import requests #to handle http requests to the API 
+import aiohttp  # this lib replaces requests for asynchronous i/o
+import asyncio
+import async_timeout
 from psycopg2 import connect #Connect to local PostgreSQL db
+from datetime import datetime
+from time import sleep
+#import socket
+
+# Note - the package yarl, a dependency of aiohttp, breaks the library on version 0.9.4 and 0.9.5
+# So need to manually install 0.9.3 or try 0.9.6, which should fix the bug.
+# e.g. pip uninstall yarl; pip install yarl==0.9.3
+# see https://github.com/KeepSafe/aiohttp/issues/1635
+# Use virtualenv to avoid borking your system install of python
+
+# optimal performance may require installation of cchardet and aiodns packages
+# see  http://aiohttp.readthedocs.io/en/stable/index.html
 
 #Not used anymore
 class MissingDataException( TypeError):
@@ -12,6 +27,8 @@ class TTCSubwayScraper( object ):
              2: range(33, 64),
              4: range(64, 69)}
     BASE_URL = "http://www.ttc.ca/Subway/loadNtas.action"
+    #BASE_URL = 'http://www.ttc.ca/Subway/'
+   
     NTAS_SQL = """INSERT INTO public.ntas_data(\
             requestid, id, station_char, subwayline, system_message_type, \
             timint, traindirection, trainid, train_message) \
@@ -26,28 +43,41 @@ class TTCSubwayScraper( object ):
         payload = {"subwayLine":line_id,
                    "stationId":station_id,
                    "searchCriteria":''}
-        r = requests.get(self.BASE_URL, params = payload)
+        
+        # with timeout set to 10, need to use a try block here to catch timeout errors
+        try:
+            r = requests.get(self.BASE_URL, params = payload, timeout = 10)
+        except requests.exceptions.RequestException as err:
+            self.logger.critical(err)
+            return None
+        
+        # another try block will check for http error codes
         try:
             r.raise_for_status()
-        except request.exceptions.HTTPError as err:
+        except requests.exceptions.RequestException as err:
             self.logger.critical(err)
-            sys.exit(0)
+            return None
+
         return r.json()
 
-    def insert_request_info(self, data, line_id, station_id):
+    def insert_request_info(self, poll_id, data, line_id, station_id, request_date):
         request_row = {}
+        request_row['pollid'] = poll_id
+        request_row['request_date'] = str(request_date)
         request_row['data_'] = data['data']
         request_row['stationid'] = station_id
         request_row['lineid'] = line_id
         request_row['all_stations'] = data['allStations']
         request_row['create_date'] = data['ntasData'][0]['createDate'].replace('T', ' ')
         cursor = self.con.cursor()
-        cursor.execute("INSERT INTO public.requests(data_, stationid, lineid, all_stations, create_date)"
-                       "VALUES(%(data_)s, %(stationid)s, %(lineid)s, %(all_stations)s, %(create_date)s)"
+        cursor.execute("INSERT INTO public.requests(data_, stationid, lineid, all_stations, create_date, pollid, request_date)"
+                       "VALUES(%(data_)s, %(stationid)s, %(lineid)s, %(all_stations)s, %(create_date)s, %(pollid)s, %(request_date)s)"
                        "RETURNING requestid", request_row)
         request_id = cursor.fetchone()[0] 
         self.con.commit()
         cursor.close()
+        self.logger.debug("Request " + str(request_id) + ": " + str(request_row) )
+
         return request_id
 
     def insert_ntas_data(self, ntas_data, request_id):
@@ -68,24 +98,193 @@ class TTCSubwayScraper( object ):
         self.con.commit()
         cursor.close()
 
-    def query_all_stations(self):
+    def insert_poll_start(self, time):
+        cursor = self.con.cursor()
+        cursor.execute("INSERT INTO public.polls(poll_start)"
+                        "VALUES(%s)"
+                        "RETURNING pollid", (str(time),))
+        poll_id = cursor.fetchone()[0]
+        self.con.commit()
+        cursor.close()
+        self.logger.debug("Poll " + str(poll_id) + " started at " + str(time) )
+        return poll_id
+
+    def update_poll_end(self, poll_id, time):
+        cursor = self.con.cursor()
+        cursor.execute("UPDATE public.polls set poll_end = %s"
+                        "WHERE pollid = %s", (str(time), str(poll_id)) )
+        self.con.commit()
+        cursor.close()
+        self.logger.debug("Poll " + str(poll_id) + " ended at " + str(time) )
+
+
+    def check_for_missing_data( self, stationid, lineid, data):
+        if data is None:
+            return True
+        ntasData = data.get('ntasData')
+        if ntasData is None or ntasData ==[] :
+            return True
+
+        # there is data, so do more careful checks
+
+        # at interchange stations, the API returns trains on both lines, despite the fact that each line has a unique stationid
+        # So for interchange stations, make sure we have at least one observation on the right line!
+        interchanges = (9,10,22,30,47,48,50,64) 
+        # if we're not in an interchange station, we're done
+        if stationid not in interchanges:
+            return False 
+        # most general way to detect the problem is to check subwayLine field
+        linecodes = ("YUS", "BD", "", "SHEP")
+        # look for one train observed in the right direction
+        for record in ntasData:
+            if record['subwayLine'] == linecodes[lineid-1]:
+                return False
+
+        # none match
+        return True
+    
+
+    async def query_station_async(self, session, line_id, station_id ):
+        retries = 4
+        payload = {"subwayLine":line_id,
+                       "stationId":station_id,
+                       "searchCriteria":''}
+        for attempt in range(retries):
+            #with async_timeout.timeout(10):
+            try:
+                rtime = datetime.now()
+                async with session.get(self.BASE_URL, params=payload, timeout=5) as resp:
+                    #data = None
+                    data = await resp.json()
+
+                    if self.check_for_missing_data(station_id, line_id, data):
+                        self.logger.debug("Missing data!")
+                        self.logger.debug("Try " + str(attempt+1) + " for station " + str(station_id) + " failed.")
+                        if attempt < retries-1:
+                            self.logger.debug("Sleeping 2s  ...")
+                            await asyncio.sleep(2)
+                        continue
+                    return (data, rtime)
+            except Exception as err:
+                self.logger.critical(err)
+                self.logger.debug("request error!")
+                self.logger.debug("Try " + str(attempt+1) + " for station " + str(station_id) + " failed.")
+                if attempt < retries-1:
+                    self.logger.debug("Sleeping 2s  ...")
+                    await asyncio.sleep(2)
+                continue
+        return (None, None)
+
+
+    # async def qtest( self, session, line_id, station_id):
+    #     payload = {"subwayLine":line_id,
+    #                    "stationId":station_id,
+    #                    "searchCriteria":''}
+    #     async with session.get(self.BASE_URL, params=payload, timeout=10) as resp:
+    #         ret = await resp.json()
+    #         print(ret)
+    #         return ret
+
+    # async def qstest( self, loop):
+    #       async with aiohttp.ClientSession() as session:
+    #             tasks = []
+    #             task = asyncio.ensure_future(self.query_station_async(session, 1, 1))
+    #             tasks.append(task)
+    #             responses = await asyncio.gather(*tasks)
+    #             if self.check_for_missing_data( 1, 1, responses[0]) :
+    #                 errmsg = 'No data for line {line}, station {station}'
+    #                 self.logger.error(errmsg.format(line=1, station=1))
+    #                 self.logger.debug( errmsg.format(line=1, station=1) )
+    #             print( responses[0])
+
+    async def query_all_stations_async(self,loop):
+            poll_id = self.insert_poll_start(datetime.now())
+
+            # run requests simultaneously using asyncio
+            async with aiohttp.ClientSession() as session:
+                tasks = []
+                for line_id, stations in self.LINES.items():
+                    for station_id in stations:
+                        task = asyncio.ensure_future(self.query_station_async(session, line_id, station_id))
+                        tasks.append(task)
+                responses = await asyncio.gather(*tasks)
+
+            # check results and insert into db
+            for line_id, stations in self.LINES.items():
+                for station_id in stations:
+                    (data, rtime) = responses[station_id-1]  # may want to tweak this to check error codes etc
+                    if self.check_for_missing_data( station_id, line_id, data) :
+                        errmsg = 'No data for line {line}, station {station}'
+                        self.logger.error(errmsg.format(line=line_id, station=station_id))
+                        self.logger.debug( errmsg.format(line=line_id, station=station_id) )
+                        continue    
+                    request_id = self.insert_request_info(poll_id, data, line_id, station_id, rtime )
+                    self.insert_ntas_data(data['ntasData'], request_id)
         
+            self.update_poll_end( poll_id, datetime.now() )
+
+
+
+
+    def query_all_stations(self):
+        poll_id = self.insert_poll_start( datetime.now() )
+        retries = 3
         for line_id, stations in self.LINES.items():
             for station_id in stations:
-                data = self.get_API_response(line_id, station_id)
-                if data.get('ntasData', None) is None or data.get('ntasData', None) == []:
+                for attempt in range(retries):
+                    data = self.get_API_response(line_id, station_id)
+                    if not self.check_for_missing_data( station_id, line_id, data) :
+                        break
+                    else:
+                        self.logger.debug("Try " + str(attempt+1) + " for station " + str(station_id) + " failed.")
+                        #if data is None:
+                        # for http and timeout errors, sleep 2s before retrying
+                        self.logger.debug("Sleeping 2s  ...")
+                        sleep(2)
+       
+
+                if self.check_for_missing_data( station_id, line_id, data) :
                     errmsg = 'No data for line {line}, station {station}'
                     self.logger.error(errmsg.format(line=line_id, station=station_id))
-                    continue
-                request_id = self.insert_request_info(data, line_id, station_id)
+                    self.logger.debug( errmsg.format(line=line_id, station=station_id) )
+                    continue    
+                request_id = self.insert_request_info(poll_id, data, line_id, station_id, datetime.now() )
                 self.insert_ntas_data(data['ntasData'], request_id)
+
+        self.update_poll_end( poll_id, datetime.now() )
 
 if __name__ == '__main__':
     FORMAT = '%(asctime)-15s %(message)s'
-    logging.basicConfig(level=logging.ERROR, format=FORMAT, filename='scraper.log')
+    logging.basicConfig(level=logging.DEBUG, format=FORMAT, filename='scraper.log')
     LOGGER = logging.getLogger(__name__)
-    con = connect(database='ttc',
-                  user='rad')
-    scraper = TTCSubwayScraper(LOGGER, con)
-    scraper.query_all_stations()
-    con.close()
+
+    # add console output for debugging
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    LOGGER.addHandler(ch)
+    
+    import configparser
+    CONFIG = configparser.ConfigParser()
+    CONFIG.read('db.cfg')
+    dbset = CONFIG['DBSETTINGS']
+
+    try:
+        con = connect(**dbset)  
+        scraper = TTCSubwayScraper(LOGGER, con)
+
+        # old synchronous i/o version
+        #scraper.query_all_stations()
+
+        # new asynchronous i/o version
+        loop = asyncio.get_event_loop()
+        future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
+        #future = asyncio.ensure_future( scraper.qstest(loop))
+        loop.run_until_complete( future )
+
+
+        con.close()
+    except Exception as err:
+        LOGGER.critical("Unhandled exception - quitting.")
+        LOGGER.critical(err)
