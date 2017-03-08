@@ -264,10 +264,14 @@ if __name__ == '__main__':
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch.setFormatter(formatter)
     LOGGER.addHandler(ch)
+    
+    import configparser
+    CONFIG = configparser.ConfigParser()
+    CONFIG.read('db.cfg')
+    dbset = CONFIG['DBSETTINGS']
 
     try:
-        con = connect(database='ttc',
-                  user='postgres')  # adjust for local setup
+        con = connect(**dbset)  
         scraper = TTCSubwayScraper(LOGGER, con)
 
         # old synchronous i/o version
