@@ -18,6 +18,17 @@ We're using [this library](https://aiohttp.readthedocs.io/en/stable/) to improve
 
 The database engine used to store the data is PostgreSQL, you can find instructions to get the latest and greatest version [here](https://www.postgresql.org/). After you've set up your database you can run the contents of `create_tables.sql` in a pgAdmin query window (or run it as a sql query). 
 
+#### Edit `db.cfg`
+
+```
+[DBSETTINGS]
+database=ttc
+host=host.ip.address
+user=pi
+password=pw
+```
+
+
 ### Automating the scraper runs
 
 The scraper runs with a `python ttc_scraper_api.py` command. It doesn't have any command line options (at the moment). We've been running this from 6AM to 1AM
@@ -25,7 +36,13 @@ The scraper runs with a `python ttc_scraper_api.py` command. It doesn't have any
 #### Linux/Unix
 If you use Mac or Linux, add the below to cron. Don't forget to change `/path/to/ttc_api_scraper.py`
 
-`TODO`
+```shell
+# m h  dom mon dow   command
+* 5-23 * * 1-5 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
+* 0-1 * * 1-5 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
+* 0-2 * * 6-7 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
+* 5-23 * * 6-7 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
+```
 
 #### Windows users
 
