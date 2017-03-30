@@ -1,4 +1,4 @@
-import logging
+import logging, logging.config
 import sys
 import requests #to handle http requests to the API 
 import aiohttp  # this lib replaces requests for asynchronous i/o
@@ -254,21 +254,44 @@ class TTCSubwayScraper( object ):
         self.update_poll_end( poll_id, datetime.now() )
 
 if __name__ == '__main__':
-    FORMAT = '%(asctime)-15s %(message)s'
-    logging.basicConfig(level=logging.DEBUG, format=FORMAT, filename='scraper.log')
-    LOGGER = logging.getLogger(__name__)
-
-    # add console output for debugging
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch.setFormatter(formatter)
-    LOGGER.addHandler(ch)
     
     import configparser
-    CONFIG = configparser.ConfigParser()
+    CONFIG = configparser.ConfigParser(interpolation=None)
     CONFIG.read('db.cfg')
     dbset = CONFIG['DBSETTINGS']
+    
+    LOGGING = CONFIG['LOGGING']
+    
+#    LOGGING = {
+#        'version':1,
+#        'formatters' : {
+#        'f': {'format':
+#              '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'}
+#        },
+#        'handlers' : {
+#            'h': {'class': 'logging.StreamHandler',
+#                  'formatter': 'f',
+#                  'level': logging.DEBUG}
+#        },
+#        'root' : {
+#            'handlers': ['h'],
+#            'level': logging.DEBUG
+#        }
+#    }
+    
+    logging.basicConfig(level=logging.getLevelName(LOGGING['level']), format=LOGGING['format'], filename=LOGGING['filename'])
+    
+    LOGGER = logging.getLogger(__name__)
+    
+    # add console output for debugging
+    if LOGGING['level'] == 'DEBUG':
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+        LOGGER.addHandler(ch)
+    
+    
 
     try:
         con = connect(**dbset)  
