@@ -94,6 +94,8 @@ class TTCSubwayScraper( object ):
             record_row['traindirection'] = record['trainDirection']
             record_row['trainid'] = record['trainId']
             record_row['train_message'] = record['trainMessage']
+            if record_row['train_message'] == "Arriving":
+                continue # skip any records that are Arriving or not final
             cursor.execute(self.NTAS_SQL, record_row)
         self.con.commit()
         cursor.close()
