@@ -1,5 +1,6 @@
 import logging, logging.config
 import sys
+import argparse
 import requests #to handle http requests to the API 
 import aiohttp  # this lib replaces requests for asynchronous i/o
 import asyncio
@@ -22,6 +23,22 @@ from time import sleep
 class MissingDataException( TypeError):
     pass
 
+def parse_args(args):
+    """Parse command line arguments
+    
+    Args:
+        sys.argv[1]: command line arguments
+        
+    Returns:
+        dictionary of parsed arguments
+    """
+    PARSER = argparse.ArgumentParser(description='Scrapes TTC Subway Next Train Arrival System ')
+    
+    PARSER.add_argument('--filter', action='store_true', help='Filter records in Python before insert')
+    PARSER.add_argument("--schemaname", default='public',
+                        help="Schema to insert data, default: %(default)s")
+    return PARSER.parse_args(args)
+
 class TTCSubwayScraper( object ):
     LINES = {1: range(1, 33), #max value must be 1 greater
              2: range(33, 64),
@@ -29,15 +46,25 @@ class TTCSubwayScraper( object ):
     BASE_URL = "http://www.ttc.ca/Subway/loadNtas.action"
     #BASE_URL = 'http://www.ttc.ca/Subway/'
    
-    NTAS_SQL = """INSERT INTO public.ntas_data(\
+    def __init__(self, logger, con, filter_flag, schema):
+        self.logger = logger
+        self.con = con
+        self.filter_flag = filter_flag
+        self.NTAS_SQL = """INSERT INTO {schema}.ntas_data(\
             requestid, id, station_char, subwayline, system_message_type, \
             timint, traindirection, trainid, train_message) \
             VALUES (%(requestid)s, %(id)s, %(station_char)s, %(subwayline)s, %(system_message_type)s, \
             %(timint)s, %(traindirection)s, %(trainid)s, %(train_message)s);
-          """
-    def __init__(self, logger, con):
-        self.logger = logger
-        self.con = con
+          """.format(schema=schema)
+        self.requests_sql = """INSERT INTO {schema}.requests(data_,
+                        stationid, lineid, all_stations, create_date, pollid, request_date)
+                       VALUES(%(data_)s, %(stationid)s, %(lineid)s, %(all_stations)s, %(create_date)s, %(pollid)s, %(request_date)s)
+                       RETURNING requestid""".format(schema=schema)
+        self.poll_update_sql = """UPDATE {schema}.polls set poll_end = %s
+                        WHERE pollid = %s""".format(schema=schema)
+        self.poll_insert_sql =  """INSERT INTO {schema}.polls(poll_start)
+                        VALUES(%s)
+                        RETURNING pollid""".format(schema=schema)
         
     def get_API_response(self, line_id, station_id):
         payload = {"subwayLine":line_id,
@@ -70,9 +97,7 @@ class TTCSubwayScraper( object ):
         request_row['all_stations'] = data['allStations']
         request_row['create_date'] = data['ntasData'][0]['createDate'].replace('T', ' ')
         cursor = self.con.cursor()
-        cursor.execute("INSERT INTO public.requests(data_, stationid, lineid, all_stations, create_date, pollid, request_date)"
-                       "VALUES(%(data_)s, %(stationid)s, %(lineid)s, %(all_stations)s, %(create_date)s, %(pollid)s, %(request_date)s)"
-                       "RETURNING requestid", request_row)
+        cursor.execute(self.requests_sql, request_row)
         request_id = cursor.fetchone()[0] 
         self.con.commit()
         cursor.close()
@@ -84,6 +109,8 @@ class TTCSubwayScraper( object ):
         cursor = self.con.cursor()
 
         for record in ntas_data:
+            if self.filter_flag and record['trainMessage'] == "Arriving":
+                continue # skip any records that are Arriving or not final
             record_row ={}
             record_row['requestid'] = request_id
             record_row['id'] = record['id']
@@ -94,17 +121,14 @@ class TTCSubwayScraper( object ):
             record_row['traindirection'] = record['trainDirection']
             record_row['trainid'] = record['trainId']
             record_row['train_message'] = record['trainMessage']
-            if record_row['train_message'] == "Arriving":
-                continue # skip any records that are Arriving or not final
+            
             cursor.execute(self.NTAS_SQL, record_row)
         self.con.commit()
         cursor.close()
 
     def insert_poll_start(self, time):
         cursor = self.con.cursor()
-        cursor.execute("INSERT INTO public.polls(poll_start)"
-                        "VALUES(%s)"
-                        "RETURNING pollid", (str(time),))
+        cursor.execute(self.poll_insert_sql, (str(time),))
         poll_id = cursor.fetchone()[0]
         self.con.commit()
         cursor.close()
@@ -113,8 +137,7 @@ class TTCSubwayScraper( object ):
 
     def update_poll_end(self, poll_id, time):
         cursor = self.con.cursor()
-        cursor.execute("UPDATE public.polls set poll_end = %s"
-                        "WHERE pollid = %s", (str(time), str(poll_id)) )
+        cursor.execute(self.poll_update_sql, (str(time), str(poll_id)) )
         self.con.commit()
         cursor.close()
         self.logger.debug("Poll " + str(poll_id) + " ended at " + str(time) )
@@ -218,7 +241,6 @@ class TTCSubwayScraper( object ):
                     if self.check_for_missing_data( station_id, line_id, data) :
                         errmsg = 'No data for line {line}, station {station}'
                         self.logger.error(errmsg.format(line=line_id, station=station_id))
-                        self.logger.debug( errmsg.format(line=line_id, station=station_id) )
                         continue    
                     request_id = self.insert_request_info(poll_id, data, line_id, station_id, rtime )
                     self.insert_ntas_data(data['ntasData'], request_id)
@@ -248,7 +270,6 @@ class TTCSubwayScraper( object ):
                 if self.check_for_missing_data( station_id, line_id, data) :
                     errmsg = 'No data for line {line}, station {station}'
                     self.logger.error(errmsg.format(line=line_id, station=station_id))
-                    self.logger.debug( errmsg.format(line=line_id, station=station_id) )
                     continue    
                 request_id = self.insert_request_info(poll_id, data, line_id, station_id, datetime.now() )
                 self.insert_ntas_data(data['ntasData'], request_id)
@@ -297,7 +318,8 @@ if __name__ == '__main__':
 
     try:
         con = connect(**dbset)  
-        scraper = TTCSubwayScraper(LOGGER, con)
+        args = parse_args(sys.argv[1:])
+        scraper = TTCSubwayScraper(LOGGER, con, args.filter, args.schemaname)
 
         # old synchronous i/o version
         #scraper.query_all_stations()
