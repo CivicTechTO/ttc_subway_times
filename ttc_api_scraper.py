@@ -44,6 +44,7 @@ class TTCSubwayScraper( object ):
              2: range(33, 64),
              4: range(64, 69)}
     BASE_URL = "http://www.ttc.ca/Subway/loadNtas.action"
+    INTERCHANGES = (9,10,22,30,47,48,50,64) 
     #BASE_URL = 'http://www.ttc.ca/Subway/'
    
     def __init__(self, logger, con, filter_flag, schema):
@@ -154,9 +155,8 @@ class TTCSubwayScraper( object ):
 
         # at interchange stations, the API returns trains on both lines, despite the fact that each line has a unique stationid
         # So for interchange stations, make sure we have at least one observation on the right line!
-        interchanges = (9,10,22,30,47,48,50,64) 
         # if we're not in an interchange station, we're done
-        if stationid not in interchanges:
+        if stationid not in self.INTERCHANGES:
             return False 
         # most general way to detect the problem is to check subwayLine field
         linecodes = ("YUS", "BD", "", "SHEP")
@@ -180,7 +180,16 @@ class TTCSubwayScraper( object ):
                 rtime = datetime.now()
                 async with session.get(self.BASE_URL, params=payload, timeout=5) as resp:
                     #data = None
-                    data = await resp.json()
+                    try:
+                        data = await resp.json()
+                    except ValueError as err:
+                        self.logger.error('Malformed JSON for station {} on line {}'.format(station_id, line_id))
+                        self.logger.error(err)
+                        self.logger.error(resp.text())
+                        if attempt < retries-1:
+                            self.logger.debug("Sleeping 2s  ...")
+                            await asyncio.sleep(2)
+                        continue
 
                     if self.check_for_missing_data(station_id, line_id, data):
                         self.logger.debug("Missing data!")
