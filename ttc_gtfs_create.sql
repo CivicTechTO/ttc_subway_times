@@ -107,7 +107,7 @@ route_text_color CHAR(6)
 );
 
 CREATE TABLE gtfs.stop_times(
-trip_id bigint PRIMARY KEY,
+trip_id bigint NOT NULL,
 arrival_time interval NOT NULL,
 departure_time interval NOT NULL,
 stop_id int NOT NULL,
