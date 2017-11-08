@@ -3,7 +3,13 @@ A scraper to grab and publish TTC subway arrival times. The ultimate goal of the
 
 ## State of the project
 
-The scraper is running on AWS and submitting data to an AWS PostgreSQL database since late February 2017. We want to process this data to generate stop arrival times for each train at each station. Have a look at [**How to Get Involved**](#how-to-get-involved).
+The scraper is running on AWS and submitting data to an AWS PostgreSQL database since late February 2017. We want to process this data to generate stop arrival times for each train at each station. Have a look at [**How to Get Involved**](#how-to-get-involved). There was a couple month hiatus in data scraping once the database filled up between August and November, but the scraper is now continuing to hum along nicely.
+
+We're still trying to process the predicted arrival times we get from the API into reasonably reliable observed arrivals. This work is happening in a Jupyter Notebook [Filtering Observed Arrivals.ipynb](doc/Filtering Observed Arrivals.ipynb). The work is actually mostly in SQL, despite being in a Python notebook. Feel free to follow along. More eyes on the data leads to better data.
+
+### First Step Metric
+
+**Buffer Time:** A measure of reliability useful for the customer: how much extra time a customer needs to buffer in order for their trip to be on time 1 day out of 20.
 
 ## Documentation
 Have a look in the [`doc/`](doc/) folder for Jupyter Notebooks explaining how we explored developing this project and understanding the data.
