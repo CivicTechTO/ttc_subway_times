@@ -3,7 +3,7 @@ A scraper to grab and publish TTC subway arrival times. The ultimate goal of the
 
 ## State of the project
 
-The scraper is running on AWS and submitting data to an AWS PostgreSQL database since late February 2017. We want to process this data to generate stop arrival times for each train at each station. Have a look at [**How to Get Involved**](#how-to-get-involved). There was a couple month hiatus in data scraping once the database filled up between August and November, but the scraper is now continuing to hum along nicely.
+We have a Python scraper running on AWS and submitting predicted subway arrivals to an AWS PostgreSQL database since late February 2017. We want to process this data to generate observed station arrival times for each train at each station. Have a look at [**How to Get Involved**](#how-to-get-involved). There was a couple month hiatus in data scraping because the database was full between August and November, but the scraper is now continuing to hum along nicely.
 
 We're still trying to process the predicted arrival times we get from the API into reasonably reliable observed arrivals. This work is happening in a Jupyter Notebook [Filtering Observed Arrivals.ipynb](doc/Filtering Observed Arrivals.ipynb). The work is actually mostly in SQL, despite being in a Python notebook. Feel free to follow along. More eyes on the data leads to better data.
 
@@ -61,7 +61,7 @@ The database engine used to store the data is PostgreSQL, you can find instructi
 [DBSETTINGS]
 database=ttc
 host=host.ip.address
-user=pi
+user=yourusername
 password=pw
 ```
 
@@ -116,7 +116,7 @@ We discuss the project on [CivicTechTO's Slack Team](https://civictechto-slack-i
 
 If you're exploring the data, please write up your exploration in a Jupyter Notebook/RMarkdown/Markdown file and place it in the `doc/` folder and submit a Pull Request with details on what you explored.
 
-Otherwise have a look at [open issues](https://github.com/CivicTechTO/ttc_subway_times/issues) and comment on any thing you think you could contribute to or open your own issue if you notice something in the code.
+Otherwise have a look at [open issues](https://github.com/CivicTechTO/ttc_subway_times/issues) and comment on any thing you think you could contribute to or open your own issue if you notice something to improve upon in the code.
 
 ## Sources of Inspiration
 Boldly following in [others' footsteps](https://blog.sammdot.ca/pockettrack-tracking-subway-trains-is-hard-9c8fdfb7fd3c?source=collection_home---4------0----------)
