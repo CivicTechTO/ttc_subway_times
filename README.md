@@ -5,7 +5,7 @@ A scraper to grab and publish TTC subway arrival times. The ultimate goal of the
 
 We have a Python scraper running on AWS and submitting predicted subway arrivals to an AWS PostgreSQL database since late February 2017. We want to process this data to generate observed station arrival times for each train at each station. Have a look at [**How to Get Involved**](#how-to-get-involved). There was a couple month hiatus in data scraping because the database was full between August and November, but the scraper is now continuing to hum along nicely.
 
-We're still trying to process the predicted arrival times we get from the API into reasonably reliable observed arrivals. This work is happening in a Jupyter Notebook [Filtering Observed Arrivals.ipynb](doc/Filtering Observed Arrivals.ipynb). The work is actually mostly in SQL, despite being in a Python notebook. Feel free to follow along. More eyes on the data leads to better data.
+We're still trying to process the predicted arrival times we get from the API into reasonably reliable observed arrivals. This work is happening in a Jupyter Notebook [Filtering Observed Arrivals.ipynb](doc/Filtering%20Observed%20Arrivals.ipynb) . The work is actually mostly in SQL, despite being in a Python notebook. Feel free to follow along. More eyes on the data leads to better data.
 
 ### First Step Metric
 
@@ -48,6 +48,8 @@ Some notes on [restore](https://devdocs.io/postgresql~9.6/app-pgrestore):
  - you may want to specify which schema to restore with `-n`, or which tables to restore with `-t`
 
 ## Setting up the scraper
+
+**Note: You don't need to set up the scraper to analyze the data, but if you want to improve the scraper go ahead.**
 
 Set up a python3 environment and install requirements with the below command. If you want to modify the Jupyter notebooks to explore the data remove the `#` symbols below `# if using jupyter notebooks`
 ```shell
