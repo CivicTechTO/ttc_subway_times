@@ -120,9 +120,9 @@ class TTCSubwayScraper( object ):
         for record in ntas_data:
             record_num += 1
             if self.filter_flag and record['trainMessage'] == "Arriving":
-                continue # skip any records that are Arriving or not final
+                continue  # skip any records that are Arriving or not final
             if self.only_soonest and not(record_num%3 == 1):
-                continue # keep only the soonest arrival time
+                continue  # keep only the soonest arrival time
             record_row ={}
             record_row['requestid'] = request_id
             record_row['id'] = record['id']
