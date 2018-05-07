@@ -32,25 +32,32 @@ def parse_args(args):
     Returns:
         dictionary of parsed arguments
     """
+    #LINES = {1: range(1, 33), #max value must be 1 greater
+    #         2: range(33, 64),
+    #         4: range(64, 69)}
+    LINES = {1: [10]}  # St. George
     PARSER = argparse.ArgumentParser(description='Scrapes TTC Subway Next Train Arrival System ')
     
     PARSER.add_argument('--filter', action='store_true', help='Filter records in Python before insert')
     PARSER.add_argument("--schemaname", default='public',
                         help="Schema to insert data, default: %(default)s")
+    PARSER.add_argument('--lines', default=LINES, help='Set which lines to poll')
+    PARSER.add_argument('--only_soonest', default=True, help='Keep only the soonest time')
+
     return PARSER.parse_args(args)
 
 class TTCSubwayScraper( object ):
-    LINES = {1: range(1, 33), #max value must be 1 greater
-             2: range(33, 64),
-             4: range(64, 69)}
+
     BASE_URL = "http://www.ttc.ca/Subway/loadNtas.action"
     INTERCHANGES = (9,10,22,30,47,48,50,64) 
     #BASE_URL = 'http://www.ttc.ca/Subway/'
    
-    def __init__(self, logger, con, filter_flag, schema):
+    def __init__(self, logger, con, filter_flag, schema, lines, only_soonest):
+        self.LINES = lines
         self.logger = logger
         self.con = con
         self.filter_flag = filter_flag
+        self.only_soonest = only_soonest
         self.NTAS_SQL = """INSERT INTO {schema}.ntas_data(\
             requestid, id, station_char, subwayline, system_message_type, \
             timint, traindirection, trainid, train_message) \
@@ -109,9 +116,13 @@ class TTCSubwayScraper( object ):
     def insert_ntas_data(self, ntas_data, request_id):
         cursor = self.con.cursor()
 
+        record_num = 0
         for record in ntas_data:
+            record_num += 1
             if self.filter_flag and record['trainMessage'] == "Arriving":
                 continue # skip any records that are Arriving or not final
+            if self.only_soonest and not(record_num%3 == 1):
+                continue # keep only the soonest arrival time
             record_row ={}
             record_row['requestid'] = request_id
             record_row['id'] = record['id']
@@ -244,14 +255,16 @@ class TTCSubwayScraper( object ):
                 responses = await asyncio.gather(*tasks)
 
             # check results and insert into db
+            response_num = 0
             for line_id, stations in self.LINES.items():
                 for station_id in stations:
-                    (data, rtime) = responses[station_id-1]  # may want to tweak this to check error codes etc
+                    response_num += 1
+                    (data, rtime) = responses[response_num-1]  # may want to tweak this to check error codes etc # fix me!
                     if self.check_for_missing_data( station_id, line_id, data) :
                         errmsg = 'No data for line {line}, station {station}'
                         self.logger.error(errmsg.format(line=line_id, station=station_id))
                         continue    
-                    request_id = self.insert_request_info(poll_id, data, line_id, station_id, rtime )
+                    request_id = self.insert_request_info(poll_id, data, line_id, station_id, rtime)
                     self.insert_ntas_data(data['ntasData'], request_id)
         
             self.update_poll_end( poll_id, datetime.now() )
@@ -286,14 +299,17 @@ class TTCSubwayScraper( object ):
         self.update_poll_end( poll_id, datetime.now() )
 
 if __name__ == '__main__':
-    
+
+
     import configparser
     CONFIG = configparser.ConfigParser(interpolation=None)
-    CONFIG.read('db.cfg')
+    CONFIG.read('db2.cfg')
     dbset = CONFIG['DBSETTINGS']
-    
     LOGGING = CONFIG['LOGGING']
-    
+
+    #dbset = {'database': 'ttclive', 'user': 'postgres'}
+    #LOGGING = {'level': 'DEBUG', 'format': '%(asctime)-15s %(message)s', 'filename': 'scraper.log' }
+
 #    LOGGING = {
 #        'version':1,
 #        'formatters' : {
@@ -328,7 +344,7 @@ if __name__ == '__main__':
     try:
         con = connect(**dbset)  
         args = parse_args(sys.argv[1:])
-        scraper = TTCSubwayScraper(LOGGER, con, args.filter, args.schemaname)
+        scraper = TTCSubwayScraper(LOGGER, con, args.filter, args.schemaname, args.lines, args.only_soonest)
 
         # old synchronous i/o version
         #scraper.query_all_stations()
@@ -336,6 +352,7 @@ if __name__ == '__main__':
         # new asynchronous i/o version
         loop = asyncio.get_event_loop()
         future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
+        #future = asyncio.ensure_future(scraper.query_station_async(loop))
         #future = asyncio.ensure_future( scraper.qstest(loop))
         loop.run_until_complete( future )
 

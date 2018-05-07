@@ -4,31 +4,39 @@ from time import sleep
 import subprocess
 from datetime import datetime
 
+
 def run_parallel():
-	while True:
-		subprocess.Popen("python ttc_api_scraper.py", shell = True)
-		sleep(10)
+    while True:
+        subprocess.Popen("python ttc_api_scraper.py", shell=True)
+        sleep(10)
+
 
 def run_blocking():
-	period = 10
-	while True:
-		st = datetime.now()
-		# sleep 5 mins then check time again if after operating hours
-		if ((st.hour >= 2 and st.minute > 15) or (st.hour >= 3)) and ((st.hour < 5) or (st.hour < 6 and st.minute < 45)): 
-			sleep(300)
-			print("After operating hours: " + str(st) + " -- Sleeping 5 mins.")
-			continue
+    period = 15
+    while True:
+        st = datetime.now()
+        # sleep 5 mins then check time again if after operating hours
+        if ((st.hour >= 2 and st.minute > 15) or (st.hour >= 3)) and (
+                (st.hour < 5) or (st.hour < 6 and st.minute < 45)):
+            sleep(300)
+            print("After operating hours: " + str(st) + " -- Sleeping 5 mins.")
+            continue
 
-		subprocess.run("python ttc_api_scraper.py", shell = True)
-		et = datetime.now()
-		delta = et-st
-		if(delta.seconds < period):
-			sleep(period - delta.seconds)
+        subprocess.run("python ttc_api_scraper.py", shell=True)
+        et = datetime.now()
+        delta = et - st
+        if (delta.seconds < period):
+            sleep(period - delta.seconds)
 
 
 def main():
-	# run_parallel()
-	run_blocking()
+    # run_parallel()
+    run_blocking()
+
 
 if __name__ == "__main__":
+    import os
+    cwd = os.getcwd()
+    print(cwd)
     main()
+
