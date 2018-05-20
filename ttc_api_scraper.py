@@ -1,13 +1,19 @@
-import logging, logging.config
-import sys
-import argparse
-import requests #to handle http requests to the API 
-import aiohttp  # this lib replaces requests for asynchronous i/o
 import asyncio
-import async_timeout
-from psycopg2 import connect #Connect to local PostgreSQL db
+import logging
+import logging.config
+import re
+import subprocess
+import sys
 from datetime import datetime
 from time import sleep
+
+import click
+from psycopg2 import connect, sql  # Connect to local PostgreSQL db
+
+import aiohttp  # this lib replaces requests for asynchronous i/o
+import async_timeout
+import requests  # to handle http requests to the API
+
 #import socket
 
 # Note - the package yarl, a dependency of aiohttp, breaks the library on version 0.9.4 and 0.9.5
@@ -23,21 +29,63 @@ from time import sleep
 class MissingDataException( TypeError):
     pass
 
-def parse_args(args):
-    """Parse command line arguments
+LOGGER = logging.getLogger(__name__)
+
+class DBArchiver (object):
     
-    Args:
-        sys.argv[1]: command line arguments
-        
-    Returns:
-        dictionary of parsed arguments
-    """
-    PARSER = argparse.ArgumentParser(description='Scrapes TTC Subway Next Train Arrival System ')
+    SQLS = {'polls': sql.SQL('''COPY(SELECT * FROM public.polls 
+                                    WHERE poll_start >= {0}::DATE AND poll_start < {1}::DATE + INTERVAL '1 month')
+                                TO STDOUT WITH CSV HEADER'''),
+            'requests' : sql.SQL('''COPY (SELECT r.* FROM public.requests r
+                                          NATURAL JOIN public.polls
+                                          WHERE poll_start >= {0}::DATE AND poll_start < {1}::DATE + INTERVAL '1 month')
+                                     TO STDOUT WITH CSV HEADER'''),
+            'ntas_data' : sql.SQL('''COPY (SELECT n.* FROM public.ntas_data n
+                                        NATURAL JOIN public.requests 
+                                        NATURAL JOIN public.polls
+                                        WHERE poll_start >= {}::DATE AND poll_start < {}::DATE + INTERVAL '1 month')
+                                     TO STDOUT WITH CSV HEADER''')
+    }
     
-    PARSER.add_argument('--filter', action='store_true', help='Filter records in Python before insert')
-    PARSER.add_argument("--schemaname", default='public',
-                        help="Schema to insert data, default: %(default)s")
-    return PARSER.parse_args(args)
+    def __init__(self, con, logger=None):
+        self.logger = logger
+        self.con = con
+    
+    def compress(self, filename):
+        '''Compress the given filename'''
+        subprocess.run(['gzip', filename])
+    
+    def pull_data_to_csv(self, table, month):
+        '''Download data for the specified month and table to a csv'''
+        query = self.SQLS[table].format(sql.Literal(month), sql.Literal(month))
+        filename = table+'_'+month+'.csv'
+        with self.con:
+            with self.con.cursor() as cur:
+                with open(filename, 'w') as f:
+                    cur.copy_expert(query, f)
+
+    def archive_month(self, month):
+        '''Pull and comrpess the given month of data for all tables'''
+        for table in self.SQLS.keys():
+            LOGGER.info('Pulling data for table: %s', table)
+            self.pull_data_to_csv(table, month)
+            LOGGER.info('Compressing')
+            self.compress(table+'_'+month+'.csv')
+
+    @staticmethod
+    def get_month(yyyymm):
+        regex_yyyymm = re.compile(r'20\d\d(0[1-9]|1[0-2])')
+        if re.fullmatch(regex_yyyymm.pattern, yyyymm):
+            yyyy = int(yyyymm[:4])
+            mm = int(yyyymm[-2:])
+        else:
+            raise ValueError('{yyyymm} is not a valid year-month value of format YYYYMM'
+                             .format(yyyymm=yyyymm))
+        dd='01'
+        if mm < 10:
+            return str(yyyy)+'-0'+str(mm)+'-'+dd
+        return str(yyyy)+'-'+str(mm)+'-'+dd
+                    
 
 class TTCSubwayScraper( object ):
     LINES = {1: range(1, 33), #max value must be 1 greater
@@ -285,62 +333,59 @@ class TTCSubwayScraper( object ):
 
         self.update_poll_end( poll_id, datetime.now() )
 
-if __name__ == '__main__':
-    
+@click.group()
+@click.option('-d', '--settings', type=click.Path(exists=True), default='db.cfg')
+@click.pass_context
+def cli(ctx, settings):
     import configparser
     CONFIG = configparser.ConfigParser(interpolation=None)
-    CONFIG.read('db.cfg')
+    CONFIG.read(settings)
     dbset = CONFIG['DBSETTINGS']
-    
-    LOGGING = CONFIG['LOGGING']
-    
-#    LOGGING = {
-#        'version':1,
-#        'formatters' : {
-#        'f': {'format':
-#              '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'}
-#        },
-#        'handlers' : {
-#            'h': {'class': 'logging.StreamHandler',
-#                  'formatter': 'f',
-#                  'level': logging.DEBUG}
-#        },
-#        'root' : {
-#            'handlers': ['h'],
-#            'level': logging.DEBUG
-#        }
-#    }
-    
-    logging.basicConfig(level=logging.getLevelName(LOGGING['level']), format=LOGGING['format'], filename=LOGGING['filename'])
-    
-    LOGGER = logging.getLogger(__name__)
+    log_settings = CONFIG['LOGGING']
+    ctx.obj['dbset'] = dbset
+    logging.basicConfig(level=logging.getLevelName(log_settings['level']), format=log_settings['format'], filename=log_settings['filename'])
     
     # add console output for debugging
-    if LOGGING['level'] == 'DEBUG':
+    if log_settings['level'] == 'DEBUG':
         ch = logging.StreamHandler()
         ch.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         ch.setFormatter(formatter)
         LOGGER.addHandler(ch)
-    
-    
+
+@cli.command()
+@click.pass_context
+@click.option('--filtering/--no-filtering', default=False)
+@click.option('s','--schemaname', default='public')
+def scrape(ctx, filtering, schemaname):
+    '''Run the scraper'''
+    con = connect(**ctx.obj['dbset'])  
+    scraper = TTCSubwayScraper(LOGGER, con, filtering, schemaname)
+
+    loop = asyncio.get_event_loop()
+    future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
+    loop.run_until_complete( future )
+
+    con.close()
+
+@cli.command()
+@click.pass_context
+@click.argument('month')
+def archive(ctx, month):
+    '''Download month (YYYYMM) of data from database and compress it'''
+    con = connect(**ctx.obj['dbset']) 
+    archive = DBArchiver(con)
+    LOGGER.info('Archiving month: %s', month)
+    archive.archive_month(DBArchiver.get_month(month))
+
+def main():
+    #https://github.com/pallets/click/issues/456#issuecomment-159543498
+    cli(obj={})
+
+if __name__ == '__main__':
 
     try:
-        con = connect(**dbset)  
-        args = parse_args(sys.argv[1:])
-        scraper = TTCSubwayScraper(LOGGER, con, args.filter, args.schemaname)
-
-        # old synchronous i/o version
-        #scraper.query_all_stations()
-
-        # new asynchronous i/o version
-        loop = asyncio.get_event_loop()
-        future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
-        #future = asyncio.ensure_future( scraper.qstest(loop))
-        loop.run_until_complete( future )
-
-
-        con.close()
+        main()
     except Exception as err:
         LOGGER.critical("Unhandled exception - quitting.")
         LOGGER.critical(err)
