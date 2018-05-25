@@ -216,7 +216,6 @@ class TTCSubwayScraper( object ):
         # none match
         return True
     
-
     async def query_station_async(self, session, line_id, station_id ):
         retries = 4
         payload = {"subwayLine":line_id,
@@ -238,6 +237,7 @@ class TTCSubwayScraper( object ):
                             self.logger.debug("Sleeping 2s  ...")
                             await asyncio.sleep(2)
                         continue
+                    
 
                     if self.check_for_missing_data(station_id, line_id, data):
                         self.logger.debug("Missing data!")
@@ -336,7 +336,7 @@ class TTCSubwayScraper( object ):
 @click.group()
 @click.option('-d', '--settings', type=click.Path(exists=True), default='db.cfg')
 @click.pass_context
-def cli(ctx, settings):
+def cli(ctx, settings='db.cfg'):
     import configparser
     CONFIG = configparser.ConfigParser(interpolation=None)
     CONFIG.read(settings)
@@ -356,7 +356,7 @@ def cli(ctx, settings):
 @cli.command()
 @click.pass_context
 @click.option('--filtering/--no-filtering', default=False)
-@click.option('s','--schemaname', default='public')
+@click.option('-s','--schemaname', default='public')
 def scrape(ctx, filtering, schemaname):
     '''Run the scraper'''
     con = connect(**ctx.obj['dbset'])  
