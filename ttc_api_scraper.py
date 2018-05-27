@@ -73,18 +73,59 @@ class DBArchiver (object):
             self.compress(table+'_'+month+'.csv')
 
     @staticmethod
-    def get_month(yyyymm):
-        regex_yyyymm = re.compile(r'20\d\d(0[1-9]|1[0-2])')
-        if re.fullmatch(regex_yyyymm.pattern, yyyymm):
-            yyyy = int(yyyymm[:4])
-            mm = int(yyyymm[-2:])
-        else:
-            raise ValueError('{yyyymm} is not a valid year-month value of format YYYYMM'
-                             .format(yyyymm=yyyymm))
+    def format_month(yyyy, mm):
         dd='01'
         if mm < 10:
             return str(yyyy)+'-0'+str(mm)+'-'+dd
         return str(yyyy)+'-'+str(mm)+'-'+dd
+
+    @staticmethod
+    def validate_yyyymm_range(yyyymmrange):
+        """Validate the two yyyymm command line arguments provided
+        Args:
+            yyyymmrange: List containing a start and end year-month in yyyymm format
+        
+        Returns:
+            A dictionary with the processed range like {'yyyy':range(mm1,mm2+1)}
+        
+        Raises:
+            ValueError: If the values entered are incorrect
+        """
+
+        step = 1
+        
+        if len(yyyymmrange) != 2:
+            raise ValueError('{yyyymmrange} should contain two YYYYMM arguments'
+                            .format(yyyymmrange=yyyymmrange))
+        
+        regex_yyyymm = re.compile(r'20\d\d(0[1-9]|1[0-2])')
+        yyyy, mm = [], []
+        years = {}
+        
+        for yyyymm in yyyymmrange:
+            if re.fullmatch(regex_yyyymm.pattern, yyyymm):
+                yyyy.append(int(yyyymm[:4]))
+                mm.append(int(yyyymm[-2:]))
+            else:
+                raise ValueError('{yyyymm} is not a valid year-month value of format YYYYMM'
+                                .format(yyyymm=yyyymm))
+        
+        if yyyy[0] > yyyy[1] or (yyyy[0] == yyyy[1] and mm[0] > mm[1]):
+            raise ValueError('Start date {yyyymm1} after end date {yyyymm2}'
+                            .format(yyyymm1=yyyymmrange[0], yyyymm2=yyyymmrange[1]))
+        
+        #Iterate over years and months
+        if yyyy[0] == yyyy[1]:
+            years[yyyy[0]] = range(mm[0], mm[1]+1, step)
+        else:
+            for year in range(yyyy[0], yyyy[1]+1):
+                if year == yyyy[0]:
+                    years[year] = range(mm[0], 13, step)
+                elif year == yyyy[1]:
+                    years[year] = range(1, mm[1]+1, step)
+                else:
+                    years[year] = range(1, 13, step)
+        return years
                     
 
 class TTCSubwayScraper( object ):
@@ -371,12 +412,20 @@ def scrape(ctx, filtering, schemaname):
 @cli.command()
 @click.pass_context
 @click.argument('month')
-def archive(ctx, month):
+@click.argument('end_month', required=False)
+def archive(ctx, month, end_month):
     '''Download month (YYYYMM) of data from database and compress it'''
     con = connect(**ctx.obj['dbset']) 
     archive = DBArchiver(con)
-    LOGGER.info('Archiving month: %s', month)
-    archive.archive_month(DBArchiver.get_month(month))
+
+    if end_month is None: end_month = month
+
+    months_to_iterate = DBArchiver.validate_yyyymm_range([month, end_month])
+    for year in months_to_iterate:
+        for mm in months_to_iterate[year]:
+            LOGGER.info('Archiving month: %s-%s', year, mm)
+            archive.archive_month(DBArchiver.format_month(year, mm))
+    LOGGER.info('Archiving complete.')
 
 def main():
     #https://github.com/pallets/click/issues/456#issuecomment-159543498
