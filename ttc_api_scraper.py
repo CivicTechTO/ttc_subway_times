@@ -32,20 +32,18 @@ class MissingDataException( TypeError):
 LOGGER = logging.getLogger(__name__)
 
 class DBArchiver (object):
-    
-    SQLS = {'polls': sql.SQL('''COPY(SELECT * FROM public.polls 
-                                    WHERE poll_start >= {0}::DATE AND poll_start < {1}::DATE + INTERVAL '1 month')
-                                TO STDOUT WITH CSV HEADER'''),
-            'requests' : sql.SQL('''COPY (SELECT r.* FROM public.requests r
-                                          NATURAL JOIN public.polls
-                                          WHERE poll_start >= {0}::DATE AND poll_start < {1}::DATE + INTERVAL '1 month')
-                                     TO STDOUT WITH CSV HEADER'''),
-            'ntas_data' : sql.SQL('''COPY (SELECT n.* FROM public.ntas_data n
-                                        NATURAL JOIN public.requests 
-                                        NATURAL JOIN public.polls
-                                        WHERE poll_start >= {}::DATE AND poll_start < {}::DATE + INTERVAL '1 month')
-                                     TO STDOUT WITH CSV HEADER''')
-    }
+    copy_start = sql.SQL('COPY(')
+    date_filter = sql.SQL(''' AND poll_start >= {0}::DATE + INTERVAL '3 hours' AND poll_start < {1}::DATE + INTERVAL '1 month 3 hours' ''')
+    copy_end = sql.SQL(' )TO STDOUT WITH CSV HEADER')
+    delete = sql.SQL('DELETE FROM ')
+    select = sql.SQL('SELECT t.* FROM ')
+    SQLS = {'polls': {'table' : sql.SQL(''' public.polls t '''),
+                      'where_clause'  : sql.SQL('WHERE TRUE ')},
+            'requests' : {'table' : sql.SQL(''' public.requests t ''')  , 
+                         'where_clause' : sql.SQL(' WHERE t.pollid IN SELECT( pollid FROM polls WHERE TRUE ')},
+            'ntas_data' :{'table' :  sql.SQL(''' public.ntas_data t ''') ,
+                          'where_clause' : sql.SQL(''' WHERE t.requestid IN ( SELECT requestid FROM requests WHERE requests.requestid = polls.pollid ''')}
+            }
     
     def __init__(self, con, logger=None):
         self.logger = logger
@@ -57,12 +55,18 @@ class DBArchiver (object):
     
     def pull_data_to_csv(self, table, month):
         '''Download data for the specified month and table to a csv'''
-        query = self.SQLS[table].format(sql.Literal(month), sql.Literal(month))
+        query = self.copy_start + self.select + self.SQLS[table]['table'] + self.SQLS[table]['using']
+        query += self.SQLS[table]['where_clause'] + self.date_filter.format(sql.Literal(month), sql.Literal(month))
+        query += self.copy_end
         filename = table+'_'+month+'.csv'
         with self.con:
             with self.con.cursor() as cur:
                 with open(filename, 'w') as f:
                     cur.copy_expert(query, f)
+
+    def delete_month_table(self, table, month)
+        query = self.delete + self.SQLS[table]['table'] 
+        query += self.SQLS[table]['where_clause'] + self.date_filter.format(sql.Literal(month), sql.Literal(month))
 
     def archive_month(self, month):
         '''Pull and comrpess the given month of data for all tables'''
