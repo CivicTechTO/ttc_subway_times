@@ -50,19 +50,32 @@ And to restore:
 pg_restore -d ttc -c -O --if-exists --no-privileges datadump
 ```
 
-Some notes on [restore](https://devdocs.io/postgresql~9.6/app-pgrestore)::
-
+Some notes on [restore](https://devdocs.io/postgresql~9.6/app-pgrestore):
 - `-d` specifies the database. Since I'm using a database local to my computer, and I have a db username that shares my computer username, I don't need other authentication parameters. Your Mileage May Vary.
 - `-O` doesn't change owner of objects, so everything should be created as the user you connect to your database with
-- `-c` deletes and creates the tables again. If you already have data in your database, you may want to use the -a flag to specify data only, you may also want to specify --inserts which will insert each row separately. It's slow but it will prevent the entire restore from failing if you have a duplicate row.
+- `-c` deletes and creates the tables again. If you already have data in your database, you may want to use the `-a` flag to specify data only, you may also want to specify `--inserts` which will insert each row separately. It's slow but it will prevent the entire restore from failing if you have a duplicate row.
 - `--if-exists` will silence errors due to objects already existing (or not existing)
 - `--no-privileges` prevents some annoying error messages because the username which created the dump (`raphael`) doesn't exist in your database
--	you may want to specify which schema to restore with `-n`, or which tables to restore with `-t`
+- you may want to specify which schema to restore with `-n`, or which tables to restore with `-t`
 
 ## Setting up the scraper
 
 To improve the scraper, setting up the scraper is needed.  The scraper is not needed to analyze the data.
 Follow the below command to set up a python3 environment and install requirements.
+
+<details><summary>Running inside docker</summary>
+Follow the instructions [here](https://docs.docker.com/compose/install/) to get `docker-compose`.
+
+All you need to do is `docker-compose run --rm scraper`.
+This will setup a database container, initialize the tables, and then run the initial scrape.
+
+To have cli access to the data you can use `docker-compose exec db psql -U postgres -d ttc`.
+Commands of interest:
+- `\?`: list the help information for all the special commands
+- `\h`: list all the sql commands that are available
+- `\q`: quit the console
+</details>
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -74,7 +87,7 @@ We use this library for speed of polling the TTC's API by making the requests as
 
 ### Database setup
 
-The database engine used to store the data is PostgreSQL, Instructions to obtain the latest and greatest version are [here](https://www.postgresql.org/).  After setting up your database, you can run the contents of `create_tables.sql` in a pgAdmin query window (or run it as a sql query).
+The database engine used to store the data is PostgreSQL. Instructions to obtain the latest and greatest version are [here](https://www.postgresql.org/). After setting up your database, you can run the contents of `create_tables.sql` in a pgAdmin query window (or run it as a sql query).
 
 You will also need to edit `db.cfg`
 ```ini
