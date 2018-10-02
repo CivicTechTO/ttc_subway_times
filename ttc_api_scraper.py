@@ -129,7 +129,8 @@ class DBArchiver (object):
                     
 
 class TTCSubwayScraper( object ):
-    LINES = {1: range(1, 33), #max value must be 1 greater
+    LINES = {1: list(range(1, 33)) + list(range(75, 81)), #max value must be 1 greater
+                                                          #Line 1 extension is 75-80
              2: range(33, 64),
              4: range(64, 69)}
     BASE_URL = "http://www.ttc.ca/Subway/loadNtas.action"
