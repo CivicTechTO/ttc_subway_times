@@ -143,9 +143,9 @@ class TTCSubwayScraper( object ):
         self.filter_flag = filter_flag
         self.NTAS_SQL = """INSERT INTO {schema}.ntas_data(\
             requestid, id, station_char, subwayline, system_message_type, \
-            timint, traindirection, trainid, train_message) \
+            timint, traindirection, trainid, train_message, train_dest) \
             VALUES (%(requestid)s, %(id)s, %(station_char)s, %(subwayline)s, %(system_message_type)s, \
-            %(timint)s, %(traindirection)s, %(trainid)s, %(train_message)s);
+            %(timint)s, %(traindirection)s, %(trainid)s, %(train_message)s, %(train_dest)s);
           """.format(schema=schema)
         self.requests_sql = """INSERT INTO {schema}.requests(data_,
                         stationid, lineid, all_stations, create_date, pollid, request_date)
@@ -212,6 +212,7 @@ class TTCSubwayScraper( object ):
             record_row['traindirection'] = record['trainDirection']
             record_row['trainid'] = record['trainId']
             record_row['train_message'] = record['trainMessage']
+            record_row['train_dest'] = record['stationDirectionText']
             
             cursor.execute(self.NTAS_SQL, record_row)
         self.con.commit()

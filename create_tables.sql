@@ -47,7 +47,8 @@ CREATE TABLE ntas_data (
     timint numeric,
     traindirection text,
     trainid integer,
-    train_message text
+    train_message text,
+    train_dest text
 );
 
 
