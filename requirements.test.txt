@@ -1,0 +1,6 @@
+flake8~=3.5
+flake8-docstrings
+flake8-future-import
+flake8-import-order
+pdbpp~=0.9
+pytest~=3.8
