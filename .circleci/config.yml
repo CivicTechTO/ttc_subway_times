@@ -1,0 +1,57 @@
+version: 2.1
+commands:
+  tox:
+    parameters:
+      env:
+        type: string
+    steps:
+      - checkout
+      - run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          pip install --user tox
+          tox -e << parameters.env >>
+
+jobs:
+  linters:
+    docker:
+      - image: python:3.6-slim
+    working_directory: ~/repo
+    steps:
+      - tox:
+          env: linters
+
+  py35:
+    docker:
+      - image: python:3.5-slim
+    working_directory: ~/repo
+    steps:
+      - tox:
+          env: py35
+
+  py36:
+    docker:
+      - image: python:3.6-slim
+    working_directory: ~/repo
+    steps:
+      - tox:
+          env: py36
+
+  py37:
+    docker:
+      - image: python:3.7-slim
+    working_directory: ~/repo
+    steps:
+      - run: apt-get update
+      - run: apt-get install -y build-essential
+      - tox:
+          env: py37
+
+
+workflows:
+  version: 2
+  workflow:
+    jobs:
+      - linters
+      - py35
+      - py36
+      - py37
