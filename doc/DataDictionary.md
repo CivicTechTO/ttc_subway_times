@@ -27,9 +27,8 @@ The purpose of this document is to describe the main fields associated with the 
 Note that some station names have two Station IDs. For example, Bloor-Yonge has IDs 22 and 50. ID #22 corresponds to the Yonge-University line whereas ID #50 corresponds to the Bloor-Danforth line. 
 
 
-|         |                  |            |                             | 
+| Line ID |  Line Name       | Station ID | Station Name                | 
 |---------|------------------|------------|-----------------------------| 
-| Line ID | Line Name        | Station ID | Station Name                | 
 | 1       | Yonge-University | 1          | Sheppard West               | 
 | 1       | Yonge-University | 2          | Wilson                      | 
 | 1       | Yonge-University | 3          | Yorkdale                    | 
@@ -119,9 +118,8 @@ N = North, S = South, E = East, W = West and refers to the direction the train t
 
 Note that this excludes station_char values for the new station IDs (75-80).
 
-|              |                     |                |            |         | 
-|--------------|---------------------|----------------|------------|---------| 
 | station_char | station_char_name   | traindirection | Station ID | Line ID | 
+|--------------|---------------------|----------------|------------|---------| 
 | DWN1         | Sheppard West N     | North          | 1          | 1       | 
 | DWN2         | Sheppard West S     | South          | 1          | 1       | 
 | WIL1         | Wilson N            | North          | 2          | 1       | 
