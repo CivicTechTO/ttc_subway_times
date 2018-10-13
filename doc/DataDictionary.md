@@ -1,7 +1,7 @@
 ## Introduction
 
 
-The purpose of this document is to describe the main fields associated with the TTC subway API. It also translates the fields Line ID, Station ID, and station_char from codes to values that will make sense to a TTC transit user.
+The purpose of this document is to describe the main fields associated with the TTC subway API. It also translates the fields Line ID, Station ID, and station_char from IDs to values that will make sense to a TTC transit user.
 
 ## Data Dictionary
 
