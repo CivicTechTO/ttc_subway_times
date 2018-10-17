@@ -1,9 +1,17 @@
+# Data Dictionary
+
+- [Introduction](#introduction)
+- [Data Dictionary](#data-dictionary)
+- [Data Mapping for Line ID and Station ID](#data-mapping-for-line-id-and-station-id)
+- [Data Mapping for `station_char`](#data-mapping-for-station_char)
+
 ## Introduction
 
 
-The purpose of this document is to describe the main fields associated with the TTC subway API. It also translates the fields Line ID, Station ID, and station_char from IDs to values that will make sense to a TTC transit user.
+The purpose of this document is to describe the main fields associated with the TTC Subway API. It also translates the fields Line ID, Station ID, and `station_char` from IDs to values that will make sense to a TTC transit user.
 
 ## Data Dictionary
+
 | Data Source |      Field Name     |                                              Description                                              |    Example Value    |                                                                                                                                                                                                                           Further Notes                                                                                                                                                                                                                           |                                  Open Questions                                 |
 |:-----------:|:-------------------:|:-----------------------------------------------------------------------------------------------------:|:-------------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------:|
 | ntas data   | requestid           | ID referencing each request made to the API                                                           | 10                  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |                                                                                 |
@@ -22,7 +30,7 @@ The purpose of this document is to describe the main fields associated with the 
 | container   | all_stations        | Whether the call to the API succeeded (ie gathered relevant data) or failed                           | Success             | Typically always success - be worried if not                                                                                                                                                                                                                                                                                                                                                                                                                      |                                                                                 |
 | container   | create_date         | Timestamp created by API for the request                                                              | 2017-02-05 23:32:40 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |                                                                                 |
 
-## Data Mapping for Line ID and Station ID: 
+## Data Mapping for Line ID and Station ID 
 
 Note that some station names have two Station IDs. For example, Bloor-Yonge has IDs 22 and 50. ID #22 corresponds to the Yonge-University line whereas ID #50 corresponds to the Bloor-Danforth line. 
 
@@ -110,7 +118,7 @@ Note that some station names have two Station IDs. For example, Bloor-Yonge has 
 | 1       | Yonge-University | 79         | Highway 407                 | 
 | 1       | Yonge-University | 80         | Vaughan Metropolitan Centre | 
 
-## Data Mapping for Station_Char
+## Data Mapping for `station_char`
 
 In the data, some station_char values are associated with 2 station IDs and line IDs. This is because when we request data from the API for a station that is part of multiple subway lines, it returns trains details for all subway lines.  
 
