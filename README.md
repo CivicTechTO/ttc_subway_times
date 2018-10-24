@@ -9,7 +9,9 @@ We're still trying to process the predicted arrival times obtained from the API 
 Take a look at [How to Get Involved](#how-to-get-involved) with your expertise.  Feel free to follow along; your informed feedback will surely lead to better data.
 
 ## First Step Metric
-Buffer Time:  A measure of reliability useful for the rider: how much extra time he/she needs to buffer in order for the trip to be on time 1 day out of 20 (?).
+**Buffer Time** - A measure of reliability useful for the rider:
+
+- how much extra time he/she needs to buffer in order for their trip to be on time 1 trip out of 20.
 
 ## Documentation
 Review the doc/ folder for the Jupyter Notebooks explaining how we explored developing this project and understanding the data.
