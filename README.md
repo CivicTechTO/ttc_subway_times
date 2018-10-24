@@ -59,9 +59,10 @@ To modify the Jupyter notebooks to explore the data, remove the # symbols below 
 ### aiohttp
 We use this library for speed of polling the TTC's API by making the requests asynchronous.  Installation was... fine in Ubuntu 16.04 and OSX, had some hiccoughs in Debian/Raspbian. Stay tuned.
 
-## Database setup
+### Database setup
 The database engine used to store the data is PostgreSQL, Instructions to obtain the latest and greatest version is here.  After setting up your database, you can run the contents of create_tables.sql in a pgAdmin query window (or run it as a sql query).
-Edit `db.cfg`
+
+You will also need to edit `db.cfg`
 ```ini
 [DBSETTINGS]
 database=ttc
@@ -70,7 +71,7 @@ user=yourusername
 password=pw
 ```
 
-## Automating the scraper runs
+### Automating the scraper runs
 The scraper runs with a python ttc_scraper_api.py command. It doesn't have any command line options (at the moment).  We've been running this from 6AM to 1AM
 Linux/Unix
 To use Mac or Linux, add the following to cron. Don't forget to change `/path/to/ttc_api_scraper.py`
@@ -98,10 +99,6 @@ Or to run every 20s while filtering out any "arriving" records
 Windows users
 
 ***
-
-### Database setup
-
-The database engine used to store the data is PostgreSQL, you can find instructions to get the latest and greatest version [here](https://www.postgresql.org/). After you've set up your database you can run the contents of `create_tables.sql` in a pgAdmin query window (or run it as a sql query).
 
 #### Edit `db.cfg`
 
