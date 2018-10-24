@@ -98,10 +98,6 @@ Windows users
 
 ***
 
-### First Step Metric
-
-**Buffer Time:** A measure of reliability useful for the customer: how much extra time a customer needs to buffer in order for their trip to be on time 1 day out of 20.
-
 ## Documentation
 Have a look in the [`doc/`](doc/) folder for Jupyter Notebooks explaining how we explored developing this project and understanding the data.
 
