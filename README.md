@@ -56,7 +56,7 @@ pip install -r requirements.txt
 ```
 To modify the Jupyter notebooks to explore the data, remove the # symbols below # if using jupyter notebooks
 
-The library:  Aiohttp
+### aiohttp
 We use this library for speed of polling the TTC's API by making the requests asynchronous.  Installation was... fine in Ubuntu 16.04 and OSX, had some hiccoughs in Debian/Raspbian. Stay tuned.
 
 ## Database setup
@@ -98,18 +98,6 @@ Or to run every 20s while filtering out any "arriving" records
 Windows users
 
 ***
-
-## Setting up the scraper
-
-**Note: You don't need to set up the scraper to analyze the data, but if you want to improve the scraper go ahead.**
-
-Set up a python3 environment and install requirements with the below command. If you want to modify the Jupyter notebooks to explore the data remove the `#` symbols below `# if using jupyter notebooks`
-```shell
-pip install -r requirements.txt
-```
-### aiohttp
-
-We're using [this library](https://aiohttp.readthedocs.io/en/stable/) to improve speed of polling the TTC's API by making requests asynchronous. Installation was... fine in Ubuntu 16.04 and OSX, had some hiccoughs in Debian/Raspbian. Stay tuned.
 
 ### Database setup
 
