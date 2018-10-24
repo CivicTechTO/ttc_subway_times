@@ -14,8 +14,9 @@ Take a look at [How to Get Involved](#how-to-get-involved) with your expertise. 
 - how much extra time he/she needs to buffer in order for their trip to be on time 1 trip out of 20.
 
 ## Documentation
-Review the doc/ folder for the Jupyter Notebooks explaining how we explored developing this project and understanding the data.
-Data Flow and Data Structure
+Review the [doc/](doc/) folder for the Jupyter Notebooks explaining how we explored developing this project and understanding the data.
+
+## Data Flow and Data Structure
 
 The scraper runs every minute during TTC service hours.  Each of these runs is logged in polls, with a unique pollid and a start / end time.  During one run of the scraper, each station gets its predicted arrivals requested. This is logged in requests, with a unique requestid and noting which station it is using stationid and lineid. For each request, 3 predicted arrivals are recorded for each line and direction at that station.  This is stored in ntas_data (Next Train Arrival System). This table notes the train's traindirection and its unique ID trainid, the time until the train's arrival timint and a train_message, whether the train is arriving, at station, or is delayed.
 
@@ -97,9 +98,6 @@ Or to run every 20s while filtering out any "arriving" records
 Windows users
 
 ***
-
-## Documentation
-Have a look in the [`doc/`](doc/) folder for Jupyter Notebooks explaining how we explored developing this project and understanding the data.
 
 ### Data Flow and Data Structure
 The scraper runs every minute when the TTC is in service. Each of these runs is logged in `polls`, with a unique `pollid` and a start and end time.
