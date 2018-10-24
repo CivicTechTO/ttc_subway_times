@@ -99,33 +99,6 @@ Windows users
 
 ***
 
-## Analysing the Data
-
-If you don't want to set up the scraper yourself, and you want to look at historical data: read on! The data is currently stored in a PostgreSQL database on Amazon Relational Database Service (RDS). Have a look at [**How to Get Involved**](#how-to-get-involved) to find out how to get access to the data.
-
-Archives are provided in two formats: a `csv` for each of the three tables and a PostgreSQL database dump file. If you want to use R or Python to play with the data, you should be fine with the `csv` files, but if you want to play with the data in SQL, read on.
-
-The database dump (`datadump.tar.gz`)is a directory format output of [`pg_dump`](https://devdocs.io/postgresql~9.6/app-pgdump). The dump command used is:
-```shell
-pg_dump -d ttcsubway -U username -h url.to.rds.amazonaws.com -F d -n public -n filtered -f datadump
-```
-
-To uncompress it:
-```shell
-tar xvzf datadump.tar.gz
-```
-And then to restore:
-```shell
-pg_restore -d ttc -c -O --if-exists --no-privileges datadump
-```
-Some notes on [restore](https://devdocs.io/postgresql~9.6/app-pgrestore):
- - `-d` specifies the database. Since I'm using a database local to my computer, and I have a db username that shares my computer username, I don't need other authentication parameters. Your Mileage May Vary.
- - `-O` doesn't change owner of objects, so everything should be created as the user you connect to your database with
- - `-c` deletes and creates the tables again. If you already have data in your database, you may want to use the `-a` flag to specify data only, you may also want to specify `--inserts` which will insert each row separately. It's slow but it will prevent the entire restore from failing if you have a duplicate row.
- - `--if-exists` will silence errors due to objects already existing (or not existing)
- - `--no-privileges` prevents some annoying error messages because the username which created the dump (`raphael`) doesn't exist in your database
- - you may want to specify which schema to restore with `-n`, or which tables to restore with `-t`
-
 ## Setting up the scraper
 
 **Note: You don't need to set up the scraper to analyze the data, but if you want to improve the scraper go ahead.**
