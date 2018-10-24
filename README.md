@@ -30,38 +30,50 @@ Use R or Python to play with the csv files.
 To play with the data in SQL, the database dump datadump.tar.gz is a directory format output of pg_dump.
 
 The dump command is:
-pg_dump -d ttcsubway -U username -h url.to.rds.amazonaws.com -F d -n public -n filtered -f datadump
+`pg_dump -d ttcsubway -U username -h url.to.rds.amazonaws.com -F d -n public -n filtered -f datadump`
+
 To uncompress it:
-tar xvzf datadump.tar.gz
+`tar xvzf datadump.tar.gz`
+
 And to restore:
-pg_restore -d ttc -c -O --if-exists --no-privileges datadump
+`pg_restore -d ttc -c -O --if-exists --no-privileges datadump`
+
 Some notes on restore:
-•	-d specifies the database. Since I'm using a database local to my computer, and I have a db username that shares my computer username, I don't need other authentication parameters. Your Mileage May Vary.
-•	-O doesn't change owner of objects, so everything should be created as the user you connect to your database with
-•	-c deletes and creates the tables again. If you already have data in your database, you may want to use the -a flag to specify data only, you may also want to specify --inserts which will insert each row separately. It's slow but it will prevent the entire restore from failing if you have a duplicate row.
-•	--if-exists will silence errors due to objects already existing (or not existing)
-•	--no-privileges prevents some annoying error messages because the username which created the dump (raphael) doesn't exist in your database
-•	you may want to specify which schema to restore with -n, or which tables to restore with -t
-Setting up the scraper
+
+- `-d` specifies the database. Since I'm using a database local to my computer, and I have a db username that shares my computer username, I don't need other authentication parameters. Your Mileage May Vary.
+- `-O` doesn't change owner of objects, so everything should be created as the user you connect to your database with
+- `-c` deletes and creates the tables again. If you already have data in your database, you may want to use the -a flag to specify data only, you may also want to specify --inserts which will insert each row separately. It's slow but it will prevent the entire restore from failing if you have a duplicate row.
+- `--if-exists` will silence errors due to objects already existing (or not existing)
+- `--no-privileges` prevents some annoying error messages because the username which created the dump (raphael) doesn't exist in your database
+-	you may want to specify which schema to restore with -n, or which tables to restore with -t
+
+## Setting up the scraper
 To improve the scraper, setting up the scraper is needed.  The scraper is not needed to analyze the data.
 Follow the below command to set up a python3 environment and install requirements.
+```bash
 pip install -r requirements.txt
+```
 To modify the Jupyter notebooks to explore the data, remove the # symbols below # if using jupyter notebooks
+
 The library:  Aiohttp
 We use this library for speed of polling the TTC's API by making the requests asynchronous.  Installation was... fine in Ubuntu 16.04 and OSX, had some hiccoughs in Debian/Raspbian. Stay tuned.
 
 ## Database setup
 The database engine used to store the data is PostgreSQL, Instructions to obtain the latest and greatest version is here.  After setting up your database, you can run the contents of create_tables.sql in a pgAdmin query window (or run it as a sql query).
-Edit db.cfg
+Edit `db.cfg`
+```ini
 [DBSETTINGS]
 database=ttc
 host=host.ip.address
 user=yourusername
 password=pw
-Automating the scraper runs
+```
+
+## Automating the scraper runs
 The scraper runs with a python ttc_scraper_api.py command. It doesn't have any command line options (at the moment).  We've been running this from 6AM to 1AM
 Linux/Unix
-To use Mac or Linux, add the following to cron. Don't forget to change /path/to/ttc_api_scraper.py
+To use Mac or Linux, add the following to cron. Don't forget to change `/path/to/ttc_api_scraper.py`
+```bash
 # m h  dom mon dow   command
 * 5-23 * * 1-5 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
 * 0-1 * * 1-5 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
@@ -80,6 +92,8 @@ Or to run every 20s while filtering out any "arriving" records
 * 0-1 * * 1-5 (sleep 40; cd ~/git/ttc_subway_times && bin/python3 ttc_api_scraper.py --filter --schemaname filtered)
 * 5-23 * * 6-7 (sleep 40; cd ~/git/ttc_subway_times && bin/python3 ttc_api_scraper.py --filter --schemaname filtered)
 * 0-2 * * 6-7 (sleep 40; cd ~/git/ttc_subway_times && bin/python3 ttc_api_scraper.py --filter --schemaname filtered)
+```
+
 Windows users
 
 ***
