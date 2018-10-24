@@ -6,7 +6,7 @@ We have a Python scraper running on AWS submitting predicted subway arrivals to 
 
 We're still trying to process the predicted arrival times obtained from the API into reasonably reliable state.  This work is happening in a Jupyter Notebook Filtering Observed Arrivals.ipynb; it is mostly in SQL, despite being in a Python notebook.
 
-Take a look at How to Get Involved with your expertise.  Feel free to follow along; your informed feedback will surely lead to better data.
+Take a look at [How to Get Involved](#how-to-get-involved) with your expertise.  Feel free to follow along; your informed feedback will surely lead to better data.
 
 ## First Step Metric
 Buffer Time:  A measure of reliability useful for the rider: how much extra time he/she needs to buffer in order for the trip to be on time 1 day out of 20 (?).
@@ -95,12 +95,6 @@ Or to run every 20s while filtering out any "arriving" records
 Windows users
 
 ***
-
-## State of the project
-
-We have a Python scraper running on AWS and submitting predicted subway arrivals to an AWS PostgreSQL database since late February 2017. We want to process this data to generate observed station arrival times for each train at each station. Have a look at [**How to Get Involved**](#how-to-get-involved). There was a couple month hiatus in data scraping because the database was full between August and November, but the scraper is now continuing to hum along nicely.
-
-We're still trying to process the predicted arrival times we get from the API into reasonably reliable observed arrivals. This work is happening in a Jupyter Notebook [Filtering Observed Arrivals.ipynb](doc/Filtering%20Observed%20Arrivals.ipynb) . The work is actually mostly in SQL, despite being in a Python notebook. Feel free to follow along. More eyes on the data leads to better data.
 
 ### First Step Metric
 
