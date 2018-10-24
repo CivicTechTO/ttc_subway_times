@@ -1,5 +1,3 @@
-PChan's rewrite of 2months ago, First Cut
-
 # TTC Subway times
 This is a project implementing a ‘scraper’ to grab and publish TTC subway arrival times against citizen-led performance metrics analyzing service timeliness and reliability.  The end goal is to maintain and publish this performance dashboard building consensus on service quality betterment over public transit in Toronto.
 
@@ -97,10 +95,6 @@ Or to run every 20s while filtering out any "arriving" records
 Windows users
 
 ***
-
-Existing system verion Pre October 17, 2018 (to integrate to First Cut above)
-# ttc_subway_times
-A scraper to grab and publish TTC subway arrival times. The ultimate goal of the project is to publish a dashboard of citizen-led performance metrics and do analysis of unreliability in order to build the political will to better public transit in Toronto.
 
 ## State of the project
 
