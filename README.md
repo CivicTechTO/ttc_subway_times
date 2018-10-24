@@ -99,12 +99,6 @@ Windows users
 
 ***
 
-### Data Flow and Data Structure
-The scraper runs every minute when the TTC is in service. Each of these runs is logged in `polls`, with a unique `pollid` and a start and end time.
-During one run of the scraper, each station gets its predicted arrivals requested. This is logged in `requests`, with a unique `requestid` and noting which station it is using `stationid` and `lineid`.
-For each request, 3 predicted arrivals are recorded for each line and direction at that station. This is stored in `ntas_data` (Next Train Arrival System). This table notes the train's `traindirection` and its unique id `trainid`, the time until the train's arrival `timint` and a `train_message`, whether the train is arriving, at station, or is delayed.
-**For more info:** have a look at the API exploration notebook under [`doc/API_exploration.ipynb`](https://github.com/CivicTechTO/ttc_subway_times/blob/master/doc/API_exploration.ipynb)
-
 ## Analysing the Data
 
 If you don't want to set up the scraper yourself, and you want to look at historical data: read on! The data is currently stored in a PostgreSQL database on Amazon Relational Database Service (RDS). Have a look at [**How to Get Involved**](#how-to-get-involved) to find out how to get access to the data.
