@@ -32,8 +32,8 @@ class MissingDataException( TypeError):
 LOGGER = logging.getLogger(__name__)
 
 class DBArchiver (object):
-    
-    SQLS = {'polls': sql.SQL('''COPY(SELECT * FROM public.polls 
+
+    SQLS = {'polls': sql.SQL('''COPY(SELECT * FROM public.polls
                                     WHERE poll_start >= {0}::DATE AND poll_start < {1}::DATE + INTERVAL '1 month')
                                 TO STDOUT WITH CSV HEADER'''),
             'requests' : sql.SQL('''COPY (SELECT r.* FROM public.requests r
@@ -41,20 +41,20 @@ class DBArchiver (object):
                                           WHERE poll_start >= {0}::DATE AND poll_start < {1}::DATE + INTERVAL '1 month')
                                      TO STDOUT WITH CSV HEADER'''),
             'ntas_data' : sql.SQL('''COPY (SELECT n.* FROM public.ntas_data n
-                                        NATURAL JOIN public.requests 
+                                        NATURAL JOIN public.requests
                                         NATURAL JOIN public.polls
                                         WHERE poll_start >= {}::DATE AND poll_start < {}::DATE + INTERVAL '1 month')
                                      TO STDOUT WITH CSV HEADER''')
     }
-    
+
     def __init__(self, con, logger=None):
         self.logger = logger
         self.con = con
-    
+
     def compress(self, filename):
         '''Compress the given filename'''
         subprocess.run(['gzip', filename])
-    
+
     def pull_data_to_csv(self, table, month):
         '''Download data for the specified month and table to a csv'''
         query = self.SQLS[table].format(sql.Literal(month), sql.Literal(month))
@@ -84,24 +84,24 @@ class DBArchiver (object):
         """Validate the two yyyymm command line arguments provided
         Args:
             yyyymmrange: List containing a start and end year-month in yyyymm format
-        
+
         Returns:
             A dictionary with the processed range like {'yyyy':range(mm1,mm2+1)}
-        
+
         Raises:
             ValueError: If the values entered are incorrect
         """
 
         step = 1
-        
+
         if len(yyyymmrange) != 2:
             raise ValueError('{yyyymmrange} should contain two YYYYMM arguments'
                             .format(yyyymmrange=yyyymmrange))
-        
+
         regex_yyyymm = re.compile(r'20\d\d(0[1-9]|1[0-2])')
         yyyy, mm = [], []
         years = {}
-        
+
         for yyyymm in yyyymmrange:
             if re.fullmatch(regex_yyyymm.pattern, yyyymm):
                 yyyy.append(int(yyyymm[:4]))
@@ -109,11 +109,11 @@ class DBArchiver (object):
             else:
                 raise ValueError('{yyyymm} is not a valid year-month value of format YYYYMM'
                                 .format(yyyymm=yyyymm))
-        
+
         if yyyy[0] > yyyy[1] or (yyyy[0] == yyyy[1] and mm[0] > mm[1]):
             raise ValueError('Start date {yyyymm1} after end date {yyyymm2}'
                             .format(yyyymm1=yyyymmrange[0], yyyymm2=yyyymmrange[1]))
-        
+
         #Iterate over years and months
         if yyyy[0] == yyyy[1]:
             years[yyyy[0]] = range(mm[0], mm[1]+1, step)
@@ -126,7 +126,7 @@ class DBArchiver (object):
                 else:
                     years[year] = range(1, 13, step)
         return years
-                    
+
 
 class TTCSubwayScraper( object ):
     LINES = {1: list(range(1, 33)) + list(range(75, 81)), #max value must be 1 greater
@@ -134,9 +134,9 @@ class TTCSubwayScraper( object ):
              2: range(33, 64),
              4: range(64, 69)}
     BASE_URL = "http://www.ttc.ca/Subway/loadNtas.action"
-    INTERCHANGES = (9,10,22,30,47,48,50,64) 
+    INTERCHANGES = (9,10,22,30,47,48,50,64)
     #BASE_URL = 'http://www.ttc.ca/Subway/'
-   
+
     def __init__(self, logger, con, filter_flag, schema):
         self.logger = logger
         self.con = con
@@ -156,19 +156,19 @@ class TTCSubwayScraper( object ):
         self.poll_insert_sql =  """INSERT INTO {schema}.polls(poll_start)
                         VALUES(%s)
                         RETURNING pollid""".format(schema=schema)
-        
+
     def get_API_response(self, line_id, station_id):
         payload = {"subwayLine":line_id,
                    "stationId":station_id,
                    "searchCriteria":''}
-        
+
         # with timeout set to 10, need to use a try block here to catch timeout errors
         try:
             r = requests.get(self.BASE_URL, params = payload, timeout = 10)
         except requests.exceptions.RequestException as err:
             self.logger.critical(err)
             return None
-        
+
         # another try block will check for http error codes
         try:
             r.raise_for_status()
@@ -189,7 +189,7 @@ class TTCSubwayScraper( object ):
         request_row['create_date'] = data['ntasData'][0]['createDate'].replace('T', ' ')
         cursor = self.con.cursor()
         cursor.execute(self.requests_sql, request_row)
-        request_id = cursor.fetchone()[0] 
+        request_id = cursor.fetchone()[0]
         self.con.commit()
         cursor.close()
         self.logger.debug("Request " + str(request_id) + ": " + str(request_row) )
@@ -213,7 +213,7 @@ class TTCSubwayScraper( object ):
             record_row['trainid'] = record['trainId']
             record_row['train_message'] = record['trainMessage']
             record_row['train_dest'] = record['stationDirectionText']
-            
+
             cursor.execute(self.NTAS_SQL, record_row)
         self.con.commit()
         cursor.close()
@@ -248,7 +248,7 @@ class TTCSubwayScraper( object ):
         # So for interchange stations, make sure we have at least one observation on the right line!
         # if we're not in an interchange station, we're done
         if stationid not in self.INTERCHANGES:
-            return False 
+            return False
         # most general way to detect the problem is to check subwayLine field
         linecodes = ("YUS", "BD", "", "SHEP")
         # look for one train observed in the right direction
@@ -258,7 +258,7 @@ class TTCSubwayScraper( object ):
 
         # none match
         return True
-    
+
     async def query_station_async(self, session, line_id, station_id ):
         retries = 4
         payload = {"subwayLine":line_id,
@@ -280,7 +280,7 @@ class TTCSubwayScraper( object ):
                             self.logger.debug("Sleeping 2s  ...")
                             await asyncio.sleep(2)
                         continue
-                    
+
 
                     if self.check_for_missing_data(station_id, line_id, data):
                         self.logger.debug("Missing data!")
@@ -299,7 +299,6 @@ class TTCSubwayScraper( object ):
                     await asyncio.sleep(2)
                 continue
         return (None, None)
-
 
     # async def qtest( self, session, line_id, station_id):
     #     payload = {"subwayLine":line_id,
@@ -341,10 +340,10 @@ class TTCSubwayScraper( object ):
                     if self.check_for_missing_data( station_id, line_id, data) :
                         errmsg = 'No data for line {line}, station {station}'
                         self.logger.error(errmsg.format(line=line_id, station=station_id))
-                        continue    
+                        continue
                     request_id = self.insert_request_info(poll_id, data, line_id, station_id, rtime )
                     self.insert_ntas_data(data['ntasData'], request_id)
-        
+
             self.update_poll_end( poll_id, datetime.now() )
 
 
@@ -365,12 +364,12 @@ class TTCSubwayScraper( object ):
                         # for http and timeout errors, sleep 2s before retrying
                         self.logger.debug("Sleeping 2s  ...")
                         sleep(2)
-       
+
 
                 if self.check_for_missing_data( station_id, line_id, data) :
                     errmsg = 'No data for line {line}, station {station}'
                     self.logger.error(errmsg.format(line=line_id, station=station_id))
-                    continue    
+                    continue
                 request_id = self.insert_request_info(poll_id, data, line_id, station_id, datetime.now() )
                 self.insert_ntas_data(data['ntasData'], request_id)
 
@@ -387,7 +386,7 @@ def cli(ctx, settings='db.cfg'):
     log_settings = CONFIG['LOGGING']
     ctx.obj['dbset'] = dbset
     logging.basicConfig(level=logging.getLevelName(log_settings['level']), format=log_settings['format'], filename=log_settings['filename'])
-    
+
     # add console output for debugging
     if log_settings['level'] == 'DEBUG':
         ch = logging.StreamHandler()
@@ -402,12 +401,12 @@ def cli(ctx, settings='db.cfg'):
 @click.option('-s','--schemaname', default='public')
 def scrape(ctx, filtering, schemaname):
     '''Run the scraper'''
-    con = connect(**ctx.obj['dbset'])  
+    con = connect(**ctx.obj['dbset'])
     scraper = TTCSubwayScraper(LOGGER, con, filtering, schemaname)
 
     loop = asyncio.get_event_loop()
-    future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
-    loop.run_until_complete( future )
+    future = asyncio.ensure_future(scraper.query_all_stations_async(loop))
+    loop.run_until_complete(future)
 
     con.close()
 
@@ -417,7 +416,7 @@ def scrape(ctx, filtering, schemaname):
 @click.argument('end_month', required=False)
 def archive(ctx, month, end_month):
     '''Download month (YYYYMM) of data from database and compress it'''
-    con = connect(**ctx.obj['dbset']) 
+    con = connect(**ctx.obj['dbset'])
     archive = DBArchiver(con)
 
     if end_month is None: end_month = month
@@ -439,4 +438,4 @@ if __name__ == '__main__':
         main()
     except Exception as err:
         LOGGER.critical("Unhandled exception - quitting.")
-        LOGGER.critical(err)
+        LOGGER.critical(err, exc_info=True)
