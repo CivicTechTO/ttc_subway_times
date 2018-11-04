@@ -15,7 +15,7 @@ import aiohttp  # this lib replaces requests for asynchronous i/o
 import async_timeout
 import requests  # to handle http requests to the API
 
-from writers import WriteSQL
+from writers import WriteSQL, WriteS3
 #import socket
 
 # Note - the package yarl, a dependency of aiohttp, breaks the library on version 0.9.4 and 0.9.5
@@ -262,7 +262,9 @@ class TTCSubwayScraper( object ):
                             self.logger.debug("Sleeping 2s  ...")
                             await asyncio.sleep(2)
                         continue
+
                     return (data, rtime)
+
             except aiohttp.client_exceptions.ClientResponseError as err:
                 self.logger.error('Client response error')
                 self.logger.error(err)
@@ -274,6 +276,11 @@ class TTCSubwayScraper( object ):
             except TimeoutError as err:
                 self.logger.error('Timout Error')
                 self.logger.error(err)
+
+                if attempt < retries - 1:
+                    self.logger.debug("Sleeping 2s  ...")
+                    await asyncio.sleep(2)
+                continue
 
         return (None, None)
 
@@ -300,7 +307,7 @@ class TTCSubwayScraper( object ):
     #             print( responses[0])
 
     async def query_all_stations_async(self,loop):
-            self.writer.init()
+
             poll_id = self.insert_poll_start(datetime.now())
 
             # run requests simultaneously using asyncio
@@ -308,30 +315,24 @@ class TTCSubwayScraper( object ):
                 tasks = []
                 for line_id, stations in self.LINES.items():
                     for station_id in stations:
+
                         task = asyncio.ensure_future(self.query_station_async(session, line_id, station_id))
                         tasks.append(task)
                 responses = await asyncio.gather(*tasks)
 
+            for data, rtime in responses:
+                if data is not None:
+                    line_id = data['subwayLine']
+                    station_id = data['stationId']
 
-            # check results and insert into db
-            for line_id, stations in self.LINES.items():
-                for station_id in stations:
-                    print(responses)
-                    (data, rtime) = responses[station_id-1]  # may want to tweak this to check error codes etc
-                    if self.check_for_missing_data( station_id, line_id, data) :
-                        errmsg = 'No data for line {line}, station {station}'
-                        self.logger.error(errmsg.format(line=line_id, station=station_id))
-                        continue    
-                    request_id = self.insert_request_info(poll_id, data, line_id, station_id, rtime )
+                    request_id = self.insert_request_info(poll_id, data, line_id, station_id, rtime)
+
                     self.insert_ntas_data(data['ntasData'], request_id)
-        
+
             self.update_poll_end( poll_id, datetime.now() )
             self.writer.commit()
 
-
-
     def query_all_stations(self):
-        self.writer.init()
 
         poll_id = self.insert_poll_start( datetime.now() )
         retries = 3
@@ -382,19 +383,32 @@ def cli(ctx, settings='db.cfg'):
 
 @cli.command()
 @click.pass_context
+@click.option('--s3/--no-s3', default=False)
+@click.option('--postgres/--no-postgres', default=False)
 @click.option('--filtering/--no-filtering', default=False)
 @click.option('-s','--schemaname', default='public')
-def scrape(ctx, filtering, schemaname):
+def scrape(ctx, s3, postgres, filtering, schemaname):
     '''Run the scraper'''
-    con = connect(**ctx.obj['dbset'])
-    writer = WriteSQL(schemaname, con)
+
+    if s3==postgres:
+        logging.error("Must specify s3 or Postgres writers (not both, or neither).")
+        sys.exit(1)
+
+    if postgres:
+        con = connect(**ctx.obj['dbset'])
+        writer = WriteSQL(schemaname, con)
+
+    if s3:
+        writer = WriteS3('rvilim.ttc')
+
     scraper = TTCSubwayScraper(LOGGER, writer, filtering)
 
     loop = asyncio.get_event_loop()
     future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
     loop.run_until_complete( future )
 
-    con.close()
+    if postgres:
+        con.close()
 
 @cli.command()
 @click.pass_context

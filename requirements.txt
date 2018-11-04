@@ -4,6 +4,8 @@ chardet==2.3.0
 click~=6.7
 psycopg2~=2.7
 requests==2.12.4
+boto3==1.9
+pytz
 
 # if using jupyter notebooks
 #jupyter==1.0.0
