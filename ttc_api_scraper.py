@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 from time import sleep
 import json
-
+from concurrent.futures._base import TimeoutError
 import click
 from psycopg2 import connect, sql  # Connect to local PostgreSQL db
 
@@ -271,6 +271,9 @@ class TTCSubwayScraper( object ):
                     self.logger.debug("Sleeping 2s  ...")
                     await asyncio.sleep(2)
                 continue
+            except TimeoutError as err:
+                self.logger.error('Timout Error')
+                self.logger.error(err)
 
         return (None, None)
 
@@ -313,6 +316,7 @@ class TTCSubwayScraper( object ):
             # check results and insert into db
             for line_id, stations in self.LINES.items():
                 for station_id in stations:
+                    print(responses)
                     (data, rtime) = responses[station_id-1]  # may want to tweak this to check error codes etc
                     if self.check_for_missing_data( station_id, line_id, data) :
                         errmsg = 'No data for line {line}, station {station}'
