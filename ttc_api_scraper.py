@@ -6,6 +6,7 @@ import subprocess
 import sys
 from datetime import datetime
 from time import sleep
+import json
 
 import click
 from psycopg2 import connect, sql  # Connect to local PostgreSQL db
@@ -14,6 +15,7 @@ import aiohttp  # this lib replaces requests for asynchronous i/o
 import async_timeout
 import requests  # to handle http requests to the API
 
+from writers import WriteSQL
 #import socket
 
 # Note - the package yarl, a dependency of aiohttp, breaks the library on version 0.9.4 and 0.9.5
@@ -137,26 +139,11 @@ class TTCSubwayScraper( object ):
     INTERCHANGES = (9,10,22,30,47,48,50,64) 
     #BASE_URL = 'http://www.ttc.ca/Subway/'
    
-    def __init__(self, logger, con, filter_flag, schema):
+    def __init__(self, logger, writer, filter_flag):
         self.logger = logger
-        self.con = con
         self.filter_flag = filter_flag
-        self.NTAS_SQL = """INSERT INTO {schema}.ntas_data(\
-            requestid, id, station_char, subwayline, system_message_type, \
-            timint, traindirection, trainid, train_message, train_dest) \
-            VALUES (%(requestid)s, %(id)s, %(station_char)s, %(subwayline)s, %(system_message_type)s, \
-            %(timint)s, %(traindirection)s, %(trainid)s, %(train_message)s, %(train_dest)s);
-          """.format(schema=schema)
-        self.requests_sql = """INSERT INTO {schema}.requests(data_,
-                        stationid, lineid, all_stations, create_date, pollid, request_date)
-                       VALUES(%(data_)s, %(stationid)s, %(lineid)s, %(all_stations)s, %(create_date)s, %(pollid)s, %(request_date)s)
-                       RETURNING requestid""".format(schema=schema)
-        self.poll_update_sql = """UPDATE {schema}.polls set poll_end = %s
-                        WHERE pollid = %s""".format(schema=schema)
-        self.poll_insert_sql =  """INSERT INTO {schema}.polls(poll_start)
-                        VALUES(%s)
-                        RETURNING pollid""".format(schema=schema)
-        
+        self.writer = writer
+
     def get_API_response(self, line_id, station_id):
         payload = {"subwayLine":line_id,
                    "stationId":station_id,
@@ -187,17 +174,13 @@ class TTCSubwayScraper( object ):
         request_row['lineid'] = line_id
         request_row['all_stations'] = data['allStations']
         request_row['create_date'] = data['ntasData'][0]['createDate'].replace('T', ' ')
-        cursor = self.con.cursor()
-        cursor.execute(self.requests_sql, request_row)
-        request_id = cursor.fetchone()[0] 
-        self.con.commit()
-        cursor.close()
-        self.logger.debug("Request " + str(request_id) + ": " + str(request_row) )
+
+        request_id = self.writer.add_request_info(request_row)
+        self.logger.debug("Request " + str(request_id) + ": " + str(request_row))
 
         return request_id
 
     def insert_ntas_data(self, ntas_data, request_id):
-        cursor = self.con.cursor()
 
         for record in ntas_data:
             if self.filter_flag and record['trainMessage'] == "Arriving":
@@ -213,25 +196,17 @@ class TTCSubwayScraper( object ):
             record_row['trainid'] = record['trainId']
             record_row['train_message'] = record['trainMessage']
             record_row['train_dest'] = record['stationDirectionText']
-            
-            cursor.execute(self.NTAS_SQL, record_row)
-        self.con.commit()
-        cursor.close()
+
+            self.writer.add_ntas_record(record_row)
 
     def insert_poll_start(self, time):
-        cursor = self.con.cursor()
-        cursor.execute(self.poll_insert_sql, (str(time),))
-        poll_id = cursor.fetchone()[0]
-        self.con.commit()
-        cursor.close()
+
+        poll_id = self.writer.add_poll_start(time)
         self.logger.debug("Poll " + str(poll_id) + " started at " + str(time) )
         return poll_id
 
     def update_poll_end(self, poll_id, time):
-        cursor = self.con.cursor()
-        cursor.execute(self.poll_update_sql, (str(time), str(poll_id)) )
-        self.con.commit()
-        cursor.close()
+        self.writer.add_poll_end(poll_id, time)
         self.logger.debug("Poll " + str(poll_id) + " ended at " + str(time) )
 
 
@@ -268,19 +243,17 @@ class TTCSubwayScraper( object ):
             #with async_timeout.timeout(10):
             try:
                 rtime = datetime.now()
-                async with session.get(self.BASE_URL, params=payload, timeout=5) as resp:
+                async with session.get(self.BASE_URL, params=payload, timeout=5, raise_for_status=True) as resp:
                     #data = None
                     try:
                         data = await resp.json()
                     except ValueError as err:
                         self.logger.error('Malformed JSON for station {} on line {}'.format(station_id, line_id))
                         self.logger.error(err)
-                        self.logger.error(resp.text())
                         if attempt < retries-1:
                             self.logger.debug("Sleeping 2s  ...")
                             await asyncio.sleep(2)
                         continue
-                    
 
                     if self.check_for_missing_data(station_id, line_id, data):
                         self.logger.debug("Missing data!")
@@ -290,14 +263,15 @@ class TTCSubwayScraper( object ):
                             await asyncio.sleep(2)
                         continue
                     return (data, rtime)
-            except Exception as err:
-                self.logger.critical(err)
-                self.logger.debug("request error!")
-                self.logger.debug("Try " + str(attempt+1) + " for station " + str(station_id) + " failed.")
-                if attempt < retries-1:
+            except aiohttp.client_exceptions.ClientResponseError as err:
+                self.logger.error('Client response error')
+                self.logger.error(err)
+
+                if attempt < retries - 1:
                     self.logger.debug("Sleeping 2s  ...")
                     await asyncio.sleep(2)
                 continue
+
         return (None, None)
 
 
@@ -323,6 +297,7 @@ class TTCSubwayScraper( object ):
     #             print( responses[0])
 
     async def query_all_stations_async(self,loop):
+            self.writer.init()
             poll_id = self.insert_poll_start(datetime.now())
 
             # run requests simultaneously using asyncio
@@ -333,6 +308,7 @@ class TTCSubwayScraper( object ):
                         task = asyncio.ensure_future(self.query_station_async(session, line_id, station_id))
                         tasks.append(task)
                 responses = await asyncio.gather(*tasks)
+
 
             # check results and insert into db
             for line_id, stations in self.LINES.items():
@@ -346,13 +322,16 @@ class TTCSubwayScraper( object ):
                     self.insert_ntas_data(data['ntasData'], request_id)
         
             self.update_poll_end( poll_id, datetime.now() )
-
+            self.writer.commit()
 
 
 
     def query_all_stations(self):
+        self.writer.init()
+
         poll_id = self.insert_poll_start( datetime.now() )
         retries = 3
+
         for line_id, stations in self.LINES.items():
             for station_id in stations:
                 for attempt in range(retries):
@@ -375,6 +354,7 @@ class TTCSubwayScraper( object ):
                 self.insert_ntas_data(data['ntasData'], request_id)
 
         self.update_poll_end( poll_id, datetime.now() )
+        self.writer.commit()
 
 @click.group()
 @click.option('-d', '--settings', type=click.Path(exists=True), default='db.cfg')
@@ -402,8 +382,9 @@ def cli(ctx, settings='db.cfg'):
 @click.option('-s','--schemaname', default='public')
 def scrape(ctx, filtering, schemaname):
     '''Run the scraper'''
-    con = connect(**ctx.obj['dbset'])  
-    scraper = TTCSubwayScraper(LOGGER, con, filtering, schemaname)
+    con = connect(**ctx.obj['dbset'])
+    writer = WriteSQL(schemaname, con)
+    scraper = TTCSubwayScraper(LOGGER, writer, filtering)
 
     loop = asyncio.get_event_loop()
     future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
@@ -434,7 +415,7 @@ def main():
     cli(obj={})
 
 if __name__ == '__main__':
-
+    main()
     try:
         main()
     except Exception as err:
