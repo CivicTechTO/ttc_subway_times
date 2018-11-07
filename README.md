@@ -1,7 +1,9 @@
 # TTC Subway times
+
 This is a project implementing a ‘scraper’ to grab and publish TTC subway arrival times against citizen-led performance metrics analyzing service timeliness and reliability.  The end goal is to maintain and publish this performance dashboard building consensus on service quality betterment over public transit in Toronto.
 
 ## State of the project
+
 We have a Python scraper running on AWS submitting predicted subway arrivals to an AWS PostgreSQL database since late February 2017.  We need to process this data to generate observed station arrival times for each train at each station.  There was a couple month hiatus in data scraping because the database was full between August and November, but the scraper is now continuing to hum along nicely.
 
 We're still trying to process the predicted arrival times obtained from the API into reasonably reliable state.  This work is happening in a Jupyter Notebook [Filtering Observed Arrivals.ipynb](doc/Filtering%20Observed%20Arrivals.ipynb); it is mostly in SQL, despite being in a Python notebook.
@@ -9,11 +11,13 @@ We're still trying to process the predicted arrival times obtained from the API 
 Take a look at [How to Get Involved](#how-to-get-involved) with your expertise. Feel free to follow along; your informed feedback will surely lead to better data.
 
 ## First Step Metric
+
 **Buffer Time** - A measure of reliability useful for the rider:
 
 - how much extra time he/she needs to buffer in order for their trip to be on time 1 trip out of 20.
 
 ## Documentation
+
 Review the [doc/](doc/) folder for the Jupyter Notebooks explaining how we explored developing this project and understanding the data.
 
 ## Data Flow and Data Structure
@@ -23,6 +27,7 @@ The scraper runs every minute during TTC service hours.  Each of these runs is l
 For more info: review the API exploration notebook under [`doc/API_exploration.ipynb`](https://github.com/CivicTechTO/ttc_subway_times/blob/master/doc/API_exploration.ipynb)
 
 ## Analyzing the Data
+
 The historical data is currently stored in a PostgreSQL database on Amazon Relational Database Service (RDS).  Archives are provided in two formats: a csv for each of the three tables and a PostgreSQL database dump file.
 
 Without setting up the scraper yourself, follow this section to access the data: [How to Get Involved](#how-to-get-involved).
@@ -64,9 +69,11 @@ pip install -r requirements.txt
 To modify the Jupyter notebooks to explore the data, remove the # symbols below # if using jupyter notebooks
 
 ### aiohttp
+
 We use this library for speed of polling the TTC's API by making the requests asynchronous.  Installation was... fine in Ubuntu 16.04 and OSX, had some hiccoughs in Debian/Raspbian. Stay tuned.
 
 ### Database setup
+
 The database engine used to store the data is PostgreSQL, Instructions to obtain the latest and greatest version are [here](https://www.postgresql.org/).  After setting up your database, you can run the contents of `create_tables.sql` in a pgAdmin query window (or run it as a sql query).
 
 You will also need to edit `db.cfg`
@@ -111,6 +118,7 @@ To use Mac or Linux, add the following to cron. Don't forget to change `/path/to
 Use Task Scheduler.
 
 #### cronic.py
+
 If the above sounds complicated, here's a simple looping script that calls `ttc_api_scraper.py` every minute during the TTC's operating hours. Just start it in your command line with
 ```shell
 python cronic.py
@@ -127,5 +135,6 @@ If you're exploring the data, please write up your exploration in a Jupyter Note
 Otherwise have a look at [open issues](https://github.com/CivicTechTO/ttc_subway_times/issues) and comment on any thing you think you could contribute to or open your own issue if you notice something to improve upon in the code.
 
 ## Sources of Inspiration
+
 Boldly following in [others' footsteps](https://blog.sammdot.ca/pockettrack-tracking-subway-trains-is-hard-9c8fdfb7fd3c?source=collection_home---4------0----------)
 See more on the [Resources page](https://github.com/CivicTechTO/ttc_subway_times/wiki/Resources)
