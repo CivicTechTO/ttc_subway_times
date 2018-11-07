@@ -4,9 +4,9 @@ This is a project implementing a ‘scraper’ to grab and publish TTC subway ar
 ## State of the project
 We have a Python scraper running on AWS submitting predicted subway arrivals to an AWS PostgreSQL database since late February 2017.  We need to process this data to generate observed station arrival times for each train at each station.  There was a couple month hiatus in data scraping because the database was full between August and November, but the scraper is now continuing to hum along nicely.
 
-We're still trying to process the predicted arrival times obtained from the API into reasonably reliable state.  This work is happening in a Jupyter Notebook Filtering Observed Arrivals.ipynb; it is mostly in SQL, despite being in a Python notebook.
+We're still trying to process the predicted arrival times obtained from the API into reasonably reliable state.  This work is happening in a Jupyter Notebook [Filtering Observed Arrivals.ipynb](doc/Filtering%20Observed%20Arrivals.ipynb); it is mostly in SQL, despite being in a Python notebook.
 
-Take a look at [How to Get Involved](#how-to-get-involved) with your expertise.  Feel free to follow along; your informed feedback will surely lead to better data.
+Take a look at [How to Get Involved](#how-to-get-involved) with your expertise. Feel free to follow along; your informed feedback will surely lead to better data.
 
 ## First Step Metric
 **Buffer Time** - A measure of reliability useful for the rider:
@@ -18,37 +18,44 @@ Review the [doc/](doc/) folder for the Jupyter Notebooks explaining how we explo
 
 ## Data Flow and Data Structure
 
-The scraper runs every minute during TTC service hours.  Each of these runs is logged in polls, with a unique pollid and a start / end time.  During one run of the scraper, each station gets its predicted arrivals requested. This is logged in requests, with a unique requestid and noting which station it is using stationid and lineid. For each request, 3 predicted arrivals are recorded for each line and direction at that station.  This is stored in ntas_data (Next Train Arrival System). This table notes the train's traindirection and its unique ID trainid, the time until the train's arrival timint and a train_message, whether the train is arriving, at station, or is delayed.
+The scraper runs every minute during TTC service hours.  Each of these runs is logged in `polls`, with a unique `pollid` and a start / end time.  During one run of the scraper, each station gets its predicted arrivals requested. This is logged in `requests`, with a unique `requestid` and noting which station it is using `stationid` and `lineid`. For each request, 3 predicted arrivals are recorded for each line and direction at that station.  This is stored in `ntas_data` (Next Train Arrival System). This table notes the train's `traindirection` and its unique ID `trainid`, the time until the train's arrival `timint` and a `train_message`, whether the train is arriving, at station, or is delayed.
 
-For more info: review the API exploration notebook under doc/API_exploration.ipynb
+For more info: review the API exploration notebook under [`doc/API_exploration.ipynb`](https://github.com/CivicTechTO/ttc_subway_times/blob/master/doc/API_exploration.ipynb)
 
 ## Analyzing the Data
 The historical data is currently stored in a PostgreSQL database on Amazon Relational Database Service (RDS).  Archives are provided in two formats: a csv for each of the three tables and a PostgreSQL database dump file.
 
-Without setting up the scraper yourself, follow this section to access the data: How to Get Involved.
+Without setting up the scraper yourself, follow this section to access the data: [How to Get Involved](#how-to-get-involved).
 Use R or Python to play with the csv files.
 
-To play with the data in SQL, the database dump datadump.tar.gz is a directory format output of pg_dump.
+To play with the data in SQL, the database dump `datadump.tar.gz` is a directory format output of [`pg_dump`](https://devdocs.io/postgresql~9.6/app-pgdump).
 
 The dump command is:
-`pg_dump -d ttcsubway -U username -h url.to.rds.amazonaws.com -F d -n public -n filtered -f datadump`
+```shell
+pg_dump -d ttcsubway -U username -h url.to.rds.amazonaws.com -F d -n public -n filtered -f datadump
+```
 
 To uncompress it:
-`tar xvzf datadump.tar.gz`
+```shell
+tar xvzf datadump.tar.gz
+```
 
 And to restore:
-`pg_restore -d ttc -c -O --if-exists --no-privileges datadump`
+```shell
+pg_restore -d ttc -c -O --if-exists --no-privileges datadump
+```
 
-Some notes on restore:
+Some notes on [restore](https://devdocs.io/postgresql~9.6/app-pgrestore)::
 
 - `-d` specifies the database. Since I'm using a database local to my computer, and I have a db username that shares my computer username, I don't need other authentication parameters. Your Mileage May Vary.
 - `-O` doesn't change owner of objects, so everything should be created as the user you connect to your database with
 - `-c` deletes and creates the tables again. If you already have data in your database, you may want to use the -a flag to specify data only, you may also want to specify --inserts which will insert each row separately. It's slow but it will prevent the entire restore from failing if you have a duplicate row.
 - `--if-exists` will silence errors due to objects already existing (or not existing)
-- `--no-privileges` prevents some annoying error messages because the username which created the dump (raphael) doesn't exist in your database
--	you may want to specify which schema to restore with -n, or which tables to restore with -t
+- `--no-privileges` prevents some annoying error messages because the username which created the dump (`raphael`) doesn't exist in your database
+-	you may want to specify which schema to restore with `-n`, or which tables to restore with `-t`
 
 ## Setting up the scraper
+
 To improve the scraper, setting up the scraper is needed.  The scraper is not needed to analyze the data.
 Follow the below command to set up a python3 environment and install requirements.
 ```bash
@@ -60,7 +67,7 @@ To modify the Jupyter notebooks to explore the data, remove the # symbols below 
 We use this library for speed of polling the TTC's API by making the requests asynchronous.  Installation was... fine in Ubuntu 16.04 and OSX, had some hiccoughs in Debian/Raspbian. Stay tuned.
 
 ### Database setup
-The database engine used to store the data is PostgreSQL, Instructions to obtain the latest and greatest version is here.  After setting up your database, you can run the contents of create_tables.sql in a pgAdmin query window (or run it as a sql query).
+The database engine used to store the data is PostgreSQL, Instructions to obtain the latest and greatest version are [here](https://www.postgresql.org/).  After setting up your database, you can run the contents of `create_tables.sql` in a pgAdmin query window (or run it as a sql query).
 
 You will also need to edit `db.cfg`
 ```ini
@@ -72,9 +79,11 @@ password=pw
 ```
 
 ### Automating the scraper runs
-The scraper runs with a python ttc_scraper_api.py command. It doesn't have any command line options (at the moment).  We've been running this from 6AM to 1AM
+
+The scraper runs with a `python ttc_scraper_api.py` command. It doesn't have any command line options (at the moment).  We've been running this from 6AM to 1AM
 
 #### Linux/Unix
+
 To use Mac or Linux, add the following to cron. Don't forget to change `/path/to/ttc_api_scraper.py`
 ```bash
 # m h  dom mon dow   command
@@ -82,7 +91,7 @@ To use Mac or Linux, add the following to cron. Don't forget to change `/path/to
 * 0-1 * * 1-5 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
 * 5-23 * * 6-7 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
 * 0-2 * * 6-7 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
-Or to run every 20s while filtering out any "arriving" records
+#Or to run every 20s while filtering out any "arriving" records
 * 5-23 * * 1-5 cd ~/git/ttc_subway_times && bin/python3 ttc_api_scraper.py --filter --schemaname filtered
 * 0-1 * * 1-5 cd ~/git/ttc_subway_times && bin/python3 ttc_api_scraper.py --filter --schemaname filtered
 * 5-23 * * 6-7 cd ~/git/ttc_subway_times && bin/python3 ttc_api_scraper.py --filter --schemaname filtered
