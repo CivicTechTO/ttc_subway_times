@@ -5,6 +5,7 @@ from io import BytesIO
 import json
 import time
 import pytz, datetime
+import logging
 
 class WriteSQL(object):
 
@@ -58,16 +59,15 @@ class WriteSQL(object):
 
 
 class WriteS3(object):
-    ntas_records = []
-    requests = []
-    polls = {}
-    s3 = boto3.resource('s3')
 
-    def __init__(self, bucket_name):
+    def __init__(self, bucket_name, access_key, secret_key):
+        self.ntas_records = []
+        self.requests = []
+        self.polls = {}
+
         self.bucket_name = bucket_name
 
-    def init(self):
-        pass
+        self.s3 = boto3.resource('s3', aws_access_key_id=access_key, aws_secret_access_key=secret_key)
 
     def add_ntas_record(self, record_row):
         self.ntas_records.append(record_row)
@@ -90,8 +90,7 @@ class WriteS3(object):
         return request_id
 
     def commit(self):
-
-        # with BytesIO() as f:
+        logging.info('Writing {nrecords} to S3'.format(nrecords=len(self.ntas_records)))
         f = BytesIO()
 
         tar = tarfile.open(fileobj=f, mode='w')
@@ -110,8 +109,16 @@ class WriteS3(object):
         tz = pytz.timezone('America/Toronto')
         toronto_now = datetime.datetime.now(tz)
 
-        self.s3.Bucket(self.bucket_name).put_object(Key=str(toronto_now)+'.tar', Body=f)
+        try:
+            self.s3.Bucket(self.bucket_name).put_object(Key=str(toronto_now)+'.tar', Body=f)
+        except:
+            logging.critical('Error writing to S3')
+
         tar.close()
+
+        self.ntas_records = []
+        self.requests = []
+        self.polls = {}
 
     def string_to_tarfile(self, name, string):
         encoded = string.encode('utf-8')

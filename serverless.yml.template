@@ -1,0 +1,24 @@
+service: ttc-subway-times
+
+provider:
+  name: aws
+  runtime: python3.6
+  timeout: 300
+
+functions:
+  ttc_api_scrape:
+    handler: ttc_api_scraper.handler
+    events:
+      - schedule:
+          rate: cron(* 0-2,5-23 * * ? *)
+          timezone: America/Toronto
+    environment:
+      S3_BUCKET: <AWS S3 BUCKET>
+      AWS_S3_ACCESS_KEY: <AWS S3 ACCESS KEY>
+      AWS_S3_SECRET_KEY: <AWS S3 SECRET KEY>
+plugins:
+  - serverless-python-requirements
+  - serverless-local-schedule
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux

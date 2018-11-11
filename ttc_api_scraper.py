@@ -1,18 +1,18 @@
 import asyncio
+import configparser
 import logging
 import logging.config
 import re
+import os
 import subprocess
 import sys
 from datetime import datetime
 from time import sleep
-import json
 from concurrent.futures._base import TimeoutError
 import click
 from psycopg2 import connect, sql  # Connect to local PostgreSQL db
 
 import aiohttp  # this lib replaces requests for asynchronous i/o
-import async_timeout
 import requests  # to handle http requests to the API
 
 from writers import WriteSQL, WriteS3
@@ -240,7 +240,6 @@ class TTCSubwayScraper( object ):
                        "stationId":station_id,
                        "searchCriteria":''}
         for attempt in range(retries):
-            #with async_timeout.timeout(10):
             try:
                 rtime = datetime.now()
                 async with session.get(self.BASE_URL, params=payload, timeout=5, raise_for_status=True) as resp:
@@ -264,6 +263,14 @@ class TTCSubwayScraper( object ):
                         continue
 
                     return (data, rtime)
+            except aiohttp.client_exceptions.ClientConnectorError as err:
+                self.logger.error('Could not connect')
+                self.logger.error(err)
+
+                if attempt < retries - 1:
+                    self.logger.debug("Sleeping 2s  ...")
+                    await asyncio.sleep(2)
+                continue
 
             except aiohttp.client_exceptions.ClientResponseError as err:
                 self.logger.error('Client response error')
@@ -365,7 +372,7 @@ class TTCSubwayScraper( object ):
 @click.option('-d', '--settings', type=click.Path(exists=True), default='db.cfg')
 @click.pass_context
 def cli(ctx, settings='db.cfg'):
-    import configparser
+
     CONFIG = configparser.ConfigParser(interpolation=None)
     CONFIG.read(settings)
     dbset = CONFIG['DBSETTINGS']
@@ -387,11 +394,12 @@ def cli(ctx, settings='db.cfg'):
 @click.option('--postgres/--no-postgres', default=False)
 @click.option('--filtering/--no-filtering', default=False)
 @click.option('-s','--schemaname', default='public')
-def scrape(ctx, s3, postgres, filtering, schemaname):
+@click.option('--bucketname',default='rvilim.ttc.scrape')
+def scrape(ctx, s3, postgres, filtering, schemaname, bucketname):
     '''Run the scraper'''
 
-    if s3==postgres:
-        logging.error("Must specify s3 or Postgres writers (not both, or neither).")
+    if s3 == postgres:
+        LOGGER.critical("Must specify s3 or Postgres writers (not both, or neither).")
         sys.exit(1)
 
     if postgres:
@@ -399,7 +407,18 @@ def scrape(ctx, s3, postgres, filtering, schemaname):
         writer = WriteSQL(schemaname, con)
 
     if s3:
-        writer = WriteS3('rvilim.ttc')
+        if os.environ.get('AWS_S3_ACCESS_KEY') is None:
+            LOGGER.critical("AWS_S3_ACCESS_KEY environmental variable is not set")
+            sys.exit(1)
+
+        if os.environ.get('AWS_S3_SECRET_KEY') is None:
+            LOGGER.critical("AWS_S3_SECRET_KEY environmental variable is not set")
+            sys.exit(1)
+
+        secret_key = os.environ.get('AWS_S3_SECRET_KEY')
+        access_key = os.environ.get('AWS_S3_ACCESS_KEY')
+
+        writer = WriteS3(bucketname, access_key, secret_key)
 
     scraper = TTCSubwayScraper(LOGGER, writer, filtering)
 
@@ -427,6 +446,31 @@ def archive(ctx, month, end_month):
             LOGGER.info('Archiving month: %s-%s', year, mm)
             archive.archive_month(DBArchiver.format_month(year, mm))
     LOGGER.info('Archiving complete.')
+
+def handler(event, context):
+    if os.environ.get('S3_BUCKET') is None:
+        LOGGER.critical("S3_BUCKET environmental variable is not set")
+        sys.exit(1)
+
+    if os.environ.get('AWS_S3_ACCESS_KEY') is None:
+        LOGGER.critical("S3_BUCKET environmental variable is not set")
+        sys.exit(1)
+
+    if os.environ.get('AWS_S3_SECRET_KEY') is None:
+        LOGGER.critical("S3_BUCKET environmental variable is not set")
+        sys.exit(1)
+
+    bucket_name = os.environ.get('S3_BUCKET')
+    secret_key = os.environ.get('AWS_S3_SECRET_KEY')
+    access_key = os.environ.get('AWS_S3_ACCESS_KEY')
+
+    writer = WriteS3(bucket_name, access_key, secret_key)
+
+    scraper = TTCSubwayScraper(LOGGER, writer, False)
+
+    loop = asyncio.get_event_loop()
+    future = asyncio.ensure_future(scraper.query_all_stations_async(loop))
+    loop.run_until_complete(future)
 
 def main():
     #https://github.com/pallets/click/issues/456#issuecomment-159543498
