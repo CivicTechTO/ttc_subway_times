@@ -16,7 +16,6 @@ import aiohttp  # this lib replaces requests for asynchronous i/o
 import requests  # to handle http requests to the API
 
 from writers import WriteSQL, WriteS3
-#import socket
 
 # Note - the package yarl, a dependency of aiohttp, breaks the library on version 0.9.4 and 0.9.5
 # So need to manually install 0.9.3 or try 0.9.6, which should fix the bug.
@@ -31,7 +30,15 @@ from writers import WriteSQL, WriteS3
 class MissingDataException( TypeError):
     pass
 
+handlers=[logging.StreamHandler()]
+if os.environ.get('LOG_FILENAME'):
+    handlers.append(logging.FileHandler(os.environ.get('LOG_FILENAME')))
+
+logging.basicConfig(format="%(asctime)-15s %(message)s",
+                    handlers=handlers)
+
 LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(getattr(logging, os.environ.get('LOG_LEVEL')))
 
 class DBArchiver (object):
     
@@ -239,6 +246,7 @@ class TTCSubwayScraper( object ):
         payload = {"subwayLine":line_id,
                        "stationId":station_id,
                        "searchCriteria":''}
+
         for attempt in range(retries):
             try:
                 rtime = datetime.now()
@@ -264,30 +272,30 @@ class TTCSubwayScraper( object ):
 
                     return (data, rtime)
             except aiohttp.client_exceptions.ClientConnectorError as err:
-                self.logger.error('Could not connect')
-                self.logger.error(err)
-
                 if attempt < retries - 1:
                     self.logger.debug("Sleeping 2s  ...")
                     await asyncio.sleep(2)
                 continue
 
             except aiohttp.client_exceptions.ClientResponseError as err:
-                self.logger.error('Client response error')
-                self.logger.error(err)
+                self.logger.debug('Client response error')
+                self.logger.debug(err)
 
                 if attempt < retries - 1:
                     self.logger.debug("Sleeping 2s  ...")
                     await asyncio.sleep(2)
                 continue
             except TimeoutError as err:
-                self.logger.error('Timout Error')
-                self.logger.error(err)
+                self.logger.debug('Timout Error')
+                self.logger.debug(err)
 
                 if attempt < retries - 1:
                     self.logger.debug("Sleeping 2s  ...")
                     await asyncio.sleep(2)
                 continue
+
+        self.logger.error('Out of retries, could not fetch '
+                          '{line_id}, {station_id}'.format(line_id=line_id, station_id=station_id))
 
         return (None, None)
 
@@ -372,21 +380,11 @@ class TTCSubwayScraper( object ):
 @click.option('-d', '--settings', type=click.Path(exists=True), default='db.cfg')
 @click.pass_context
 def cli(ctx, settings='db.cfg'):
-
     CONFIG = configparser.ConfigParser(interpolation=None)
     CONFIG.read(settings)
     dbset = CONFIG['DBSETTINGS']
-    log_settings = CONFIG['LOGGING']
+
     ctx.obj['dbset'] = dbset
-    logging.basicConfig(level=logging.getLevelName(log_settings['level']), format=log_settings['format'], filename=log_settings['filename'])
-    
-    # add console output for debugging
-    if log_settings['level'] == 'DEBUG':
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        LOGGER.addHandler(ch)
 
 @cli.command()
 @click.pass_context
@@ -398,6 +396,8 @@ def cli(ctx, settings='db.cfg'):
 def scrape(ctx, s3, postgres, filtering, schemaname, bucketname):
     '''Run the scraper'''
 
+    LOGGER.info("INFO")
+    LOGGER.error("Error")
     if s3 == postgres:
         LOGGER.critical("Must specify s3 or Postgres writers (not both, or neither).")
         sys.exit(1)
@@ -448,6 +448,9 @@ def archive(ctx, month, end_month):
     LOGGER.info('Archiving complete.')
 
 def handler(event, context):
+    CONFIG = configparser.ConfigParser(interpolation=None)
+    CONFIG.read('db.cfg')
+
     if os.environ.get('S3_BUCKET') is None:
         LOGGER.critical("S3_BUCKET environmental variable is not set")
         sys.exit(1)

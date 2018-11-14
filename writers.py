@@ -6,6 +6,10 @@ import json
 import time
 import pytz, datetime
 import logging
+import os
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(getattr(logging, os.environ.get('LOG_LEVEL')))
 
 class WriteSQL(object):
 
@@ -90,7 +94,7 @@ class WriteS3(object):
         return request_id
 
     def commit(self):
-        logging.info('Writing {nrecords} to S3'.format(nrecords=len(self.ntas_records)))
+        LOGGER.info('Writing {nrecords} records to S3'.format(nrecords=len(self.ntas_records)))
         f = BytesIO()
 
         tar = tarfile.open(fileobj=f, mode='w')
@@ -112,10 +116,9 @@ class WriteS3(object):
         try:
             self.s3.Bucket(self.bucket_name).put_object(Key=str(toronto_now)+'.tar', Body=f)
         except:
-            logging.critical('Error writing to S3')
+            LOGGER.critical('Error writing to S3')
 
         tar.close()
-
         self.ntas_records = []
         self.requests = []
         self.polls = {}
