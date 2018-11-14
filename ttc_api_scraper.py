@@ -38,7 +38,11 @@ logging.basicConfig(format="%(asctime)-15s %(message)s",
                     handlers=handlers)
 
 LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(getattr(logging, os.environ.get('LOG_LEVEL')))
+
+if os.environ.get('LOG_LEVEL'):
+    LOGGER.setLevel(getattr(logging, os.environ.get('LOG_LEVEL')))
+else:
+    LOGGER.setLevel(getattr(logging, 'INFO'))
 
 class DBArchiver (object):
     

@@ -124,6 +124,22 @@ There is a mode which will allow scraping via AWS Lambda and persisting to S3,
 with logging added to AWS Cloudwatch. This mode uses the Serverless frameworks.
 
 ### Setup
+Once installing the requirements.txt (Python) and the package.json (npm),
+move serverless.yml.template to serverless.yml and replace the environmental 
+variables with actual values (You will need to generate creds for AWS)
+
+Finally deploy the function with 
+```shell
+serverless deploy -v
+```
+
+This script generates JSONS of the results and puts them into 
+`S3://<AWS S3 BUCKET>/<SERVICE DATE>/<TIMESTAMP.tar>`, where the 
+bucket is defined in serverless.yml, and the service date is the 
+date that service started on (e.g. before the subway shutdown for 
+the night).
+
+Logs are automatically persisted to Cloudwatch. 
 
 ## How to Get Involved
 
