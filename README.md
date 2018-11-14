@@ -118,6 +118,13 @@ python cronic.py
 
 And let it collect the data.
 
+
+## AWS Lambda Scraping
+There is a mode which will allow scraping via AWS Lambda and persisting to S3, 
+with logging added to AWS Cloudwatch. This mode uses the Serverless frameworks.
+
+### Setup
+
 ## How to Get Involved
 
 We discuss the project on [CivicTechTO's Slack Team](https://civictechto-slack-invite.herokuapp.com/) on the `#transportation` channel. This is probably the best place to introduce yourself and ask how you can participate. There are links in that channel to get access to ~1 month of the raw data in a `csv` or a PostgreSQL dump. You can also ask about getting read access to the database. Alternatively you can set up the scraper yourself and play with your own archive locally, hack away!

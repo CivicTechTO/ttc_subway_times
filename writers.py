@@ -93,6 +93,21 @@ class WriteS3(object):
         self.requests[-1]['request_id']=request_id
         return request_id
 
+    @staticmethod
+    def _service_day(datetimestamp, servicedayhour=4):
+        ''' Rounds down a timestamp to the previous service day
+
+        Times before servicedayhour will get rounded down to the previous day
+
+        :param timestamp: A datetime to get the service day of
+        :param servicedayhour: The cut time to go to the previous sercice day
+        :return: A datetime.date of the service day
+        '''
+        if datetimestamp.time() < datetime.time(servicedayhour, 0, 0):
+            return datetimestamp.date()-datetime.timedelta(days=1)
+
+        return datetimestamp.date()
+
     def commit(self):
         LOGGER.info('Writing {nrecords} records to S3'.format(nrecords=len(self.ntas_records)))
         f = BytesIO()
@@ -112,9 +127,12 @@ class WriteS3(object):
 
         tz = pytz.timezone('America/Toronto')
         toronto_now = datetime.datetime.now(tz)
+        service_date = self._service_day(toronto_now)
 
         try:
-            self.s3.Bucket(self.bucket_name).put_object(Key=str(toronto_now)+'.tar', Body=f)
+            filename = '{servicedate}/{timestamp}.tar'.format(servicedate=service_date,
+                                                              timestamp=str(toronto_now))
+            self.s3.Bucket(self.bucket_name).put_object(Key=filename, Body=f)
         except:
             LOGGER.critical('Error writing to S3')
 
