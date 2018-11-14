@@ -400,8 +400,6 @@ def cli(ctx, settings='db.cfg'):
 def scrape(ctx, s3, postgres, filtering, schemaname, bucketname):
     '''Run the scraper'''
 
-    LOGGER.info("INFO")
-    LOGGER.error("Error")
     if s3 == postgres:
         LOGGER.critical("Must specify s3 or Postgres writers (not both, or neither).")
         sys.exit(1)

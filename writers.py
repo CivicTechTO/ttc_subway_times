@@ -11,7 +11,12 @@ import os
 import tempfile
 
 LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(getattr(logging, os.environ.get('LOG_LEVEL')))
+
+if os.environ.get('LOG_LEVEL'):
+    LOGGER.setLevel(getattr(logging, os.environ.get('LOG_LEVEL')))
+else:
+    LOGGER.setLevel(getattr(logging, 'INFO'))
+
 
 class WriteSQL(object):
 
@@ -111,8 +116,15 @@ class WriteS3(object):
         return datetimestamp.date()
 
     def commit(self):
+        '''Tars, then gzips the files and uploads them to S3.
+
+        :return:
+        '''
         LOGGER.info('Writing {nrecords} records to S3'.format(nrecords=len(self.ntas_records)))
 
+        # Note that this temporary file is a bit of a hack, for some reason the tarfile library
+        # if using w:gz with a BytesIO results in a corrupt gzip file. Specifying a temporary
+        # filename seems to resolve this problem. TODO: Fix this, it's ugly
         f = tempfile.NamedTemporaryFile(delete=False)
 
         tar = tarfile.open(name=f.name, mode='w:gz')

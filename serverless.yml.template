@@ -22,4 +22,4 @@ plugins:
   - serverless-local-schedule
 custom:
   pythonRequirements:
-    dockerizePip: non-linux
+    dockerizePip: true
