@@ -2,11 +2,13 @@ from uuid import uuid4
 import boto3
 import tarfile
 from io import BytesIO
+import gzip
 import json
 import time
 import pytz, datetime
 import logging
 import os
+import tempfile
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(getattr(logging, os.environ.get('LOG_LEVEL')))
@@ -110,9 +112,10 @@ class WriteS3(object):
 
     def commit(self):
         LOGGER.info('Writing {nrecords} records to S3'.format(nrecords=len(self.ntas_records)))
-        f = BytesIO()
 
-        tar = tarfile.open(fileobj=f, mode='w')
+        f = tempfile.NamedTemporaryFile(delete=False)
+
+        tar = tarfile.open(name=f.name, mode='w:gz')
 
         string, tar_info = self.string_to_tarfile("ntas", json.dumps(self.ntas_records))
         tar.addfile(tarinfo=tar_info, fileobj=string)
@@ -123,20 +126,18 @@ class WriteS3(object):
         string, tar_info = self.string_to_tarfile("polls", json.dumps(self.polls))
         tar.addfile(tarinfo=tar_info, fileobj=string)
 
-        f.seek(0)
-
         tz = pytz.timezone('America/Toronto')
         toronto_now = datetime.datetime.now(tz)
         service_date = self._service_day(toronto_now)
-
+        tar.close()
         try:
-            filename = '{servicedate}/{timestamp}.tar'.format(servicedate=service_date,
+            filename = '{servicedate}/{timestamp}.tar.gz'.format(servicedate=service_date,
                                                               timestamp=str(toronto_now))
-            self.s3.Bucket(self.bucket_name).put_object(Key=filename, Body=f)
+            self.s3.Bucket(self.bucket_name).upload_file(f.name, filename)
+            os.remove(f.name)
         except:
             LOGGER.critical('Error writing to S3')
 
-        tar.close()
         self.ntas_records = []
         self.requests = []
         self.polls = {}

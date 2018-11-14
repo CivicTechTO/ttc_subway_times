@@ -134,7 +134,7 @@ serverless deploy -v
 ```
 
 This script generates JSONS of the results and puts them into 
-`S3://<AWS S3 BUCKET>/<SERVICE DATE>/<TIMESTAMP.tar>`, where the 
+`S3://<AWS S3 BUCKET>/<SERVICE DATE>/<TIMESTAMP.tar.gz>`, where the 
 bucket is defined in serverless.yml, and the service date is the 
 date that service started on (e.g. before the subway shutdown for 
 the night).

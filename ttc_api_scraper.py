@@ -452,6 +452,7 @@ def archive(ctx, month, end_month):
     LOGGER.info('Archiving complete.')
 
 def handler(event, context):
+
     CONFIG = configparser.ConfigParser(interpolation=None)
     CONFIG.read('db.cfg')
 
