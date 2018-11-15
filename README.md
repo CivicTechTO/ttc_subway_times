@@ -76,17 +76,19 @@ password=pw
 
 ### Automating the scraper runs
 
-The scraper runs with a `python ttc_scraper_api.py` command. It doesn't have any command line options (at the moment). We've been running this from 6AM to 1AM
+The scraper runs with a `python ttc_scraper_api.py` command. We've been running this from 6AM to 1AM
 
+The options to this are specified in the help, it needs an action as well as a destionation 
+(e.g. scrape and --postgres)
 #### Linux/Unix
 If you use Mac or Linux, add the below to cron. Don't forget to change `/path/to/ttc_api_scraper.py`
 
 ```shell
 # m h  dom mon dow   command
-* 5-23 * * 1-5 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
-* 0-1 * * 1-5 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
-* 5-23 * * 6-7 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
-* 0-2 * * 6-7 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py
+* 5-23 * * 1-5 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py --postgres
+* 0-1 * * 1-5 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py --postgres
+* 5-23 * * 6-7 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py --postgres
+* 0-2 * * 6-7 cd /path/to/repo/ttc_subway_times/ && bin/python3 ttc_api_scraper.py --postgres
 ```
 Or if you want to run every 20s while filtering out any "arriving" records
 
