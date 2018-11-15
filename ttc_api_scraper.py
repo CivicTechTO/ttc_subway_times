@@ -9,13 +9,13 @@ import sys
 from datetime import datetime
 from time import sleep
 from concurrent.futures._base import TimeoutError
-import click
-from psycopg2 import connect, sql  # Connect to local PostgreSQL db
 
 import aiohttp  # this lib replaces requests for asynchronous i/o
+import click
+from psycopg2 import connect, sql  # Connect to local PostgreSQL db
 import requests  # to handle http requests to the API
 
-from writers import WriteSQL, WriteS3
+from writers import WriteS3, WriteSQL
 
 # Note - the package yarl, a dependency of aiohttp, breaks the library on version 0.9.4 and 0.9.5
 # So need to manually install 0.9.3 or try 0.9.6, which should fix the bug.
@@ -275,7 +275,7 @@ class TTCSubwayScraper( object ):
                         continue
 
                     return (data, rtime)
-            except aiohttp.client_exceptions.ClientConnectorError as err:
+            except aiohttp.client_exceptions.ClientConnectorError:
                 if attempt < retries - 1:
                     self.logger.debug("Sleeping 2s  ...")
                     await asyncio.sleep(2)
@@ -303,7 +303,6 @@ class TTCSubwayScraper( object ):
 
         return (None, None)
 
-
     # async def qtest( self, session, line_id, station_id):
     #     payload = {"subwayLine":line_id,
     #                    "stationId":station_id,
@@ -325,7 +324,7 @@ class TTCSubwayScraper( object ):
     #                 self.logger.debug( errmsg.format(line=1, station=1) )
     #             print( responses[0])
 
-    async def query_all_stations_async(self,loop):
+    async def query_all_stations_async(self, loop):
 
             poll_id = self.insert_poll_start(datetime.now())
 
@@ -450,8 +449,8 @@ def archive(ctx, month, end_month):
     LOGGER.info('Archiving complete.')
 
 def handler(event, context):
-    ''' The entry point for the AWS Lambda way of launching this script
-    '''
+    '''Entry point for the AWS Lambda way of launching this script'''
+
     CONFIG = configparser.ConfigParser(interpolation=None)
     CONFIG.read('db.cfg')
 

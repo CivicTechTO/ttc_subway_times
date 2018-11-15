@@ -1,14 +1,18 @@
 from uuid import uuid4
-import boto3
 import tarfile
 from io import BytesIO
 import gzip
 import json
 import time
-import pytz, datetime
+import datetime
 import logging
 import os
 import tempfile
+
+import boto3
+from botocore.exceptions import ClientError
+import pytz
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -109,7 +113,7 @@ class WriteS3(object):
 
     @staticmethod
     def _service_day(datetimestamp, servicedayhour=4):
-        """ Rounds down a timestamp to the previous service day
+        """Will round down a timestamp to the previous service day
 
         Times before servicedayhour will get rounded down to the previous day
 
@@ -157,7 +161,7 @@ class WriteS3(object):
             )
             self.s3.Bucket(self.bucket_name).upload_file(f.name, filename)
             os.remove(f.name)
-        except:
+        except ClientError:
             LOGGER.critical("Error writing to S3")
 
         self.ntas_records = []
