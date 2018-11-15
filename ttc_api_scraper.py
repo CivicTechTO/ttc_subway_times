@@ -450,7 +450,8 @@ def archive(ctx, month, end_month):
     LOGGER.info('Archiving complete.')
 
 def handler(event, context):
-
+    ''' The entry point for the AWS Lambda way of launching this script
+    '''
     CONFIG = configparser.ConfigParser(interpolation=None)
     CONFIG.read('db.cfg')
 
