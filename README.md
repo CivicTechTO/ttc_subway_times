@@ -70,7 +70,7 @@ this are specified in the help, it needs an action as well as  a destination
 The scraper script is able to persist the results to either Postgres, or AWS S3. One (and only one)
 of these must be chosen with either the --postgres or the --s3 flag.
 
-####S3
+#### S3
 If the --s3 flag is set then the S3_BUCKET environmental variable must be set which specifies 
 the bucket. 
 
@@ -84,7 +84,7 @@ These tarballs have three JSONS
 - <TIMESTAMP>/requests.json
 - <TIMESTAMP>/polls.json
 
-####Postgres
+#### Postgres
 
 If the --postgres flag is set the results will be persisted to Postgresql. You can find 
 instructions to get the latest and greatest version [here](https://www.postgresql.org/). 
