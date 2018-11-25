@@ -4,6 +4,19 @@ provider:
   name: aws
   runtime: python3.6
   timeout: 300
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+      Resource: "arn:aws:s3:::${self:custom.bucket}/*"
+
+package:
+  exclude:
+    - "**"
+  include: # Specify the directories and files which should be included in the deployment package
+    - writers.py
+    - ttc_api_scraper.py
+    - db.cfg
 
 functions:
   ttc_api_scrape:
@@ -13,13 +26,15 @@ functions:
           rate: cron(* 0-2,5-23 * * ? *)
           timezone: America/Toronto
     environment:
-      S3_BUCKET: <AWS S3 BUCKET>
-      AWS_ACCESS_KEY: <AWS S3 ACCESS KEY>
-      AWS_SECRET_KEY: <AWS S3 SECRET KEY>
+      S3_BUCKET: ${self:custom.bucket}
       LOG_LEVEL: INFO
+
 plugins:
   - serverless-python-requirements
   - serverless-local-schedule
+
 custom:
   pythonRequirements:
     dockerizePip: true
+
+  bucket: <AWS S3 BUCKET>
