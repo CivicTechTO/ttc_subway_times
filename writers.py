@@ -80,16 +80,14 @@ class WriteSQL(object):
 
 
 class WriteS3(object):
-    def __init__(self, bucket_name, access_key, secret_key):
+    def __init__(self, bucket_name):
         self.ntas_records = []
         self.requests = []
         self.polls = {}
 
         self.bucket_name = bucket_name
 
-        self.s3 = boto3.resource(
-            "s3", aws_access_key_id=access_key, aws_secret_access_key=secret_key
-        )
+        self.s3 = boto3.resource("s3")
 
     def add_ntas_record(self, record_row):
         self.ntas_records.append(record_row)
@@ -135,6 +133,18 @@ class WriteS3(object):
             "Writing {nrecords} records to S3".format(nrecords=len(self.ntas_records))
         )
 
+        tz = pytz.timezone("America/Toronto")
+        toronto_now = datetime.datetime.now(tz)
+        # Tar does not like colons at all so lets replace them with underscores, and spaces
+        # just confuse everyone so they can become dots
+        toronto_now_str=str(toronto_now).replace(':', '_').replace(' ', '.')
+
+        service_date = self._service_day(toronto_now)
+
+        filename = "{servicedate}/{timestamp}.tar.gz".format(
+            servicedate=service_date, timestamp=str(toronto_now_str)
+        )
+
         # Note that this temporary file is a bit of a hack, for some reason the tarfile library
         # if using w:gz with a BytesIO results in a corrupt gzip file. Specifying a temporary
         # filename seems to resolve this problem. TODO: Fix this, it's ugly
@@ -142,23 +152,19 @@ class WriteS3(object):
 
         tar = tarfile.open(name=f.name, mode="w:gz")
 
-        string, tar_info = self.string_to_tarfile("ntas", json.dumps(self.ntas_records))
+        string, tar_info = self.string_to_tarfile(toronto_now_str+"/ntas.json", json.dumps(self.ntas_records))
         tar.addfile(tarinfo=tar_info, fileobj=string)
 
-        string, tar_info = self.string_to_tarfile("requests", json.dumps(self.requests))
+        string, tar_info = self.string_to_tarfile(toronto_now_str+"/requests.json", json.dumps(self.requests))
         tar.addfile(tarinfo=tar_info, fileobj=string)
 
-        string, tar_info = self.string_to_tarfile("polls", json.dumps(self.polls))
+        string, tar_info = self.string_to_tarfile(toronto_now_str+"/polls.json", json.dumps(self.polls))
         tar.addfile(tarinfo=tar_info, fileobj=string)
 
-        tz = pytz.timezone("America/Toronto")
-        toronto_now = datetime.datetime.now(tz)
-        service_date = self._service_day(toronto_now)
+
         tar.close()
+
         try:
-            filename = "{servicedate}/{timestamp}.tar.gz".format(
-                servicedate=service_date, timestamp=str(toronto_now)
-            )
             self.s3.Bucket(self.bucket_name).upload_file(f.name, filename)
             os.remove(f.name)
         except ClientError:

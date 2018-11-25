@@ -408,18 +408,7 @@ def scrape(ctx, s3, postgres, filtering, schemaname, bucketname):
         writer = WriteSQL(schemaname, con)
 
     if s3:
-        if os.environ.get('AWS_S3_ACCESS_KEY') is None:
-            LOGGER.critical("AWS_S3_ACCESS_KEY environmental variable is not set")
-            sys.exit(1)
-
-        if os.environ.get('AWS_S3_SECRET_KEY') is None:
-            LOGGER.critical("AWS_S3_SECRET_KEY environmental variable is not set")
-            sys.exit(1)
-
-        secret_key = os.environ.get('AWS_S3_SECRET_KEY')
-        access_key = os.environ.get('AWS_S3_ACCESS_KEY')
-
-        writer = WriteS3(bucketname, access_key, secret_key)
+        writer = WriteS3(bucketname)
 
     scraper = TTCSubwayScraper(LOGGER, writer, filtering)
 
@@ -449,7 +438,7 @@ def archive(ctx, month, end_month):
     LOGGER.info('Archiving complete.')
 
 def handler(event, context):
-    '''Entry point for the AWS Lambda way of launching this script'''
+    ''' entry point for the AWS Lambda way of launching this script'''
 
     CONFIG = configparser.ConfigParser(interpolation=None)
     CONFIG.read('db.cfg')
@@ -458,19 +447,9 @@ def handler(event, context):
         LOGGER.critical("S3_BUCKET environmental variable is not set")
         sys.exit(1)
 
-    if os.environ.get('AWS_S3_ACCESS_KEY') is None:
-        LOGGER.critical("S3_BUCKET environmental variable is not set")
-        sys.exit(1)
-
-    if os.environ.get('AWS_S3_SECRET_KEY') is None:
-        LOGGER.critical("S3_BUCKET environmental variable is not set")
-        sys.exit(1)
-
     bucket_name = os.environ.get('S3_BUCKET')
-    secret_key = os.environ.get('AWS_S3_SECRET_KEY')
-    access_key = os.environ.get('AWS_S3_ACCESS_KEY')
 
-    writer = WriteS3(bucket_name, access_key, secret_key)
+    writer = WriteS3(bucket_name)
 
     scraper = TTCSubwayScraper(LOGGER, writer, False)
 

@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "description": "Scrape TTC subway arrival times via Serverless and AWS Lambda",
   "author": "",
-  "license": "",
+  "license": "GPL-3.0-only",
+  "repository": "https://github.com/CivicTechTO/ttc_subway_times",
   "dependencies": {
+    "serverless": "^1.33.2",
     "serverless-python-requirements": "^4.2.5"
   },
   "devDependencies": {

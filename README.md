@@ -73,15 +73,50 @@ user=yourusername
 password=pw
 ```
 
+## The Scraper
+We can retrieve the state of the subway via the `ttc_scraper_api.py` script.
 
-### Automating the scraper runs
+This will fetch the arrival information for each subway station and persist it. The options to 
+this are specified in the help, it needs an action as well as  a destination 
+(e.g. scrape and --postgres).
 
-The scraper runs with a `python ttc_scraper_api.py` command. We've been running this from 6AM to 1AM
+### Data Destinations
+The scraper script is able to persist the results to either Postgres, or AWS S3. One (and only one)
+of these must be chosen with either the --postgres or the --s3 flag.
 
-The options to this are specified in the help, it needs an action as well as a destionation 
-(e.g. scrape and --postgres)
+####S3
+If the --s3 flag is set then the S3_BUCKET variables must be set which specify the bucket. 
+
+The aws credentials should be set with 
+
+`serverless config credentials --provider aws --key <AWS_ACCESS_KEY> --secret <AWS_SECRET_KEY>`
+
+This script generates JSONS of the results and puts them into 
+`S3://<AWS S3 BUCKET>/<SERVICE DATE>/<TIMESTAMP.tar.gz>`, where the service date is the date 
+that service started on (e.g. before the subway shutdown for the night).
+
+These tarballs have three JSONS 
+
+- <TIMESTAMP>/ntas.json
+- <TIMESTAMP>/requests.json
+- <TIMESTAMP>/polls.json
+
+
+## Automating the scraper runs
+
+There are two ways that the scraper can be automated, via cron, or via Serverless
+with AWS Lambda. No matter how you choose to run it the scraper runs with 
+a `python ttc_scraper_api.py` command.
+
+
+### Cron
+If you would like to run it on your local machine, the best way to do it is to set
+up a cron to periodically run the scraper command. 
+
 #### Linux/Unix
 If you use Mac or Linux, add the below to cron. Don't forget to change `/path/to/ttc_api_scraper.py`
+These command will run the scraper from 5am to 2am on weekdays, and from 5am to 3am on weekends. 
+This also persists the results to Postgres.
 
 ```shell
 # m h  dom mon dow   command
@@ -121,25 +156,41 @@ python cronic.py
 And let it collect the data.
 
 
-## AWS Lambda Scraping
-There is a mode which will allow scraping via AWS Lambda and persisting to S3, 
-with logging added to AWS Cloudwatch. This mode uses the Serverless frameworks.
+#### AWS Lambda Scraping
+There is a mode which will allow scraping via AWS Lambda 
+with logging added to AWS Cloudwatch. This mode uses the Serverless framework.
 
-### Setup
-Once installing the requirements.txt (Python) and the package.json (npm),
-move serverless.yml.template to serverless.yml and replace the environmental 
+The Serverless framework is a set of tooling which allows the easy deployment and 
+management of serverless code.
+
+This allows us to run this code without having to spin up/monitor for an instance 
+manually. And since we only pay for the code when it is running the compute 
+costs are nearly zero.
+
+##### Setup
+In addition to installing the python requirements (above) 
+we need to install the Serverless framework with npm by running `npm install`
+in the project root. 
+
+Move serverless.yml.template to serverless.yml and replace the environmental 
 variables with actual values (You will need to generate creds for AWS)
+
+At the time of writing the schedule line is set as
+
+```yaml
+    rate: cron(* 0-2,5-23 * * ? *)
+```
+which means that it should run every minute from 5am to 2am every day. More 
+information on this cron line can be found on the [AWS documentation](https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html),
+in this documentation references to UTC should be ignored, we use the 
+'serverless-local-schedule' package which allows us to specify crons in local 
+time rather than UTC (otherwise the behaviour would change during daylight 
+savings time).
 
 Finally deploy the function with 
 ```shell
 serverless deploy -v
 ```
-
-This script generates JSONS of the results and puts them into 
-`S3://<AWS S3 BUCKET>/<SERVICE DATE>/<TIMESTAMP.tar.gz>`, where the 
-bucket is defined in serverless.yml, and the service date is the 
-date that service started on (e.g. before the subway shutdown for 
-the night).
 
 Logs are automatically persisted to Cloudwatch. 
 
