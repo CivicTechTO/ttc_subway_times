@@ -59,20 +59,6 @@ pip install -r requirements.txt
 
 We're using [this library](https://aiohttp.readthedocs.io/en/stable/) to improve speed of polling the TTC's API by making requests asynchronous. Installation was... fine in Ubuntu 16.04 and OSX, had some hiccoughs in Debian/Raspbian. Stay tuned.
 
-### Database setup
-
-The database engine used to store the data is PostgreSQL, you can find instructions to get the latest and greatest version [here](https://www.postgresql.org/). After you've set up your database you can run the contents of `create_tables.sql` in a pgAdmin query window (or run it as a sql query). 
-
-#### Edit `db.cfg`
-
-```
-[DBSETTINGS]
-database=ttc
-host=host.ip.address
-user=yourusername
-password=pw
-```
-
 ## The Scraper
 We can retrieve the state of the subway via the `ttc_scraper_api.py` script.
 
@@ -85,11 +71,8 @@ The scraper script is able to persist the results to either Postgres, or AWS S3.
 of these must be chosen with either the --postgres or the --s3 flag.
 
 ####S3
-If the --s3 flag is set then the S3_BUCKET variables must be set which specify the bucket. 
-
-The aws credentials should be set with 
-
-`serverless config credentials --provider aws --key <AWS_ACCESS_KEY> --secret <AWS_SECRET_KEY>`
+If the --s3 flag is set then the S3_BUCKET environmental variable must be set which specifies 
+the bucket. 
 
 This script generates JSONS of the results and puts them into 
 `S3://<AWS S3 BUCKET>/<SERVICE DATE>/<TIMESTAMP.tar.gz>`, where the service date is the date 
@@ -101,13 +84,69 @@ These tarballs have three JSONS
 - <TIMESTAMP>/requests.json
 - <TIMESTAMP>/polls.json
 
+####Postgres
 
-## Automating the scraper runs
+If the --postgres flag is set the results will be persisted to Postgresql. You can find 
+instructions to get the latest and greatest version [here](https://www.postgresql.org/). 
+After you've set up your database you can run the contents of `create_tables.sql` in a pgAdmin 
+query window (or run it as a sql query). 
+
+Credentials for the database should be stored in db.cfg, an example is:
+
+```
+[DBSETTINGS]
+database=ttc
+host=host.ip.address
+user=yourusername
+password=pw
+```
+
+## Automating the Scraper Runs
 
 There are two ways that the scraper can be automated, via cron, or via Serverless
 with AWS Lambda. No matter how you choose to run it the scraper runs with 
 a `python ttc_scraper_api.py` command.
 
+### AWS Lambda Scraping
+There is a mode which will allow scraping via AWS Lambda 
+with logging added to AWS Cloudwatch. This mode uses the Serverless framework.
+
+The [Serverless](https://serverless.com/) framework is a suite of tooling which allows the 
+easy deployment and management of serverless code.
+
+This allows us to run this code without having to spin up/monitor for an instance 
+manually. And since we only pay for the code when it is running the compute 
+costs are nearly zero.
+
+#### Setup
+In addition to installing the Python requirements (above) 
+we need to install the Serverless framework with npm by running `npm install`
+in the project root. 
+
+Move serverless.yml.template to serverless.yml and replace the bucket name with the actual values
+
+At the time of writing the schedule line in serverless.yml is set as
+
+```yaml
+    rate: cron(* 0-2,5-23 * * ? *)
+```
+which means that it should run every minute from 5am to 2am every day. More 
+information on this cron line can be found on the [AWS documentation](https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html),
+in this documentation references to UTC should be ignored, we use the 
+'serverless-local-schedule' package which allows us to specify crons in local 
+time rather than UTC (otherwise the behaviour would change during daylight 
+savings time).
+
+Tell Serverless which AWS creds you would like to use with  
+
+`serverless config credentials --provider aws --key <AWS_ACCESS_KEY> --secret <AWS_SECRET_KEY>`
+
+Finally deploy the function with 
+```shell
+serverless deploy -v
+```
+
+Logs are automatically persisted to Cloudwatch. 
 
 ### Cron
 If you would like to run it on your local machine, the best way to do it is to set
@@ -155,44 +194,6 @@ python cronic.py
 
 And let it collect the data.
 
-
-#### AWS Lambda Scraping
-There is a mode which will allow scraping via AWS Lambda 
-with logging added to AWS Cloudwatch. This mode uses the Serverless framework.
-
-The Serverless framework is a set of tooling which allows the easy deployment and 
-management of serverless code.
-
-This allows us to run this code without having to spin up/monitor for an instance 
-manually. And since we only pay for the code when it is running the compute 
-costs are nearly zero.
-
-##### Setup
-In addition to installing the python requirements (above) 
-we need to install the Serverless framework with npm by running `npm install`
-in the project root. 
-
-Move serverless.yml.template to serverless.yml and replace the environmental 
-variables with actual values (You will need to generate creds for AWS)
-
-At the time of writing the schedule line is set as
-
-```yaml
-    rate: cron(* 0-2,5-23 * * ? *)
-```
-which means that it should run every minute from 5am to 2am every day. More 
-information on this cron line can be found on the [AWS documentation](https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html),
-in this documentation references to UTC should be ignored, we use the 
-'serverless-local-schedule' package which allows us to specify crons in local 
-time rather than UTC (otherwise the behaviour would change during daylight 
-savings time).
-
-Finally deploy the function with 
-```shell
-serverless deploy -v
-```
-
-Logs are automatically persisted to Cloudwatch. 
 
 ## How to Get Involved
 
