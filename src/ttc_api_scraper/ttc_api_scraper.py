@@ -8,7 +8,7 @@ from datetime import datetime
 from time import sleep
 
 import click
-from psycopg2 import connect, sql  # Connect to local PostgreSQL db
+from psycopg2 import OperationalError, connect, sql  # Connect to local PostgreSQL db
 
 import aiohttp  # this lib replaces requests for asynchronous i/o
 import async_timeout
@@ -213,8 +213,8 @@ class TTCSubwayScraper( object ):
             record_row['trainid'] = record['trainId']
             record_row['train_message'] = record['trainMessage']
             record_row['train_dest'] = record['stationDirectionText']
-
             cursor.execute(self.NTAS_SQL, record_row)
+
         self.con.commit()
         cursor.close()
 
@@ -395,20 +395,37 @@ def cli(ctx, settings='db.cfg'):
         ch.setFormatter(formatter)
         LOGGER.addHandler(ch)
 
+
+def _connection(ctx, retries=3, delay=3):
+    for idx in range(retries):
+        attempt = idx + 1
+        try:
+            return connect(**ctx.obj['dbset'])
+        except OperationalError as e:
+            if 'could not connect to server' not in str(e):
+                raise
+            if attempt == retries:
+                raise
+            LOGGER.debug("Cannot connect to db. Attempt {} of {}. Trying again in {}s".format(attempt, retries, delay))
+            sleep(delay)
+
+
 @cli.command()
 @click.pass_context
 @click.option('--filtering/--no-filtering', default=False)
-@click.option('-s','--schemaname', default='public')
+@click.option('-s', '--schemaname', default='public')
 def scrape(ctx, filtering, schemaname):
     '''Run the scraper'''
-    con = connect(**ctx.obj['dbset'])
-    scraper = TTCSubwayScraper(LOGGER, con, filtering, schemaname)
+    con = _connection(ctx)
+    try:
+        scraper = TTCSubwayScraper(LOGGER, con, filtering, schemaname)
 
-    loop = asyncio.get_event_loop()
-    future = asyncio.ensure_future(scraper.query_all_stations_async(loop))
-    loop.run_until_complete(future)
+        loop = asyncio.get_event_loop()
+        future = asyncio.ensure_future(scraper.query_all_stations_async(loop))
+        loop.run_until_complete(future)
+    finally:
+        con.close()
 
-    con.close()
 
 @cli.command()
 @click.pass_context
@@ -416,17 +433,21 @@ def scrape(ctx, filtering, schemaname):
 @click.argument('end_month', required=False)
 def archive(ctx, month, end_month):
     '''Download month (YYYYMM) of data from database and compress it'''
-    con = connect(**ctx.obj['dbset'])
-    archive = DBArchiver(con)
+    con = _connection(ctx)
+    try:
+        archive = DBArchiver(con)
 
-    if end_month is None: end_month = month
+        if end_month is None: end_month = month
 
-    months_to_iterate = DBArchiver.validate_yyyymm_range([month, end_month])
-    for year in months_to_iterate:
-        for mm in months_to_iterate[year]:
-            LOGGER.info('Archiving month: %s-%s', year, mm)
-            archive.archive_month(DBArchiver.format_month(year, mm))
+        months_to_iterate = DBArchiver.validate_yyyymm_range([month, end_month])
+        for year in months_to_iterate:
+            for mm in months_to_iterate[year]:
+                LOGGER.info('Archiving month: %s-%s', year, mm)
+                archive.archive_month(DBArchiver.format_month(year, mm))
+    finally:
+        con.close()
     LOGGER.info('Archiving complete.')
+
 
 def main():
     #https://github.com/pallets/click/issues/456#issuecomment-159543498
