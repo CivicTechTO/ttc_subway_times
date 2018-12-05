@@ -18,7 +18,9 @@ Take a look at [How to Get Involved](#how-to-get-involved) with your expertise. 
 
 ## Documentation
 
-Review the [doc/](doc/) folder for the Jupyter Notebooks explaining how we explored developing this project and understanding the data.
+Review the [doc/](doc/) folder for the [Jupyter Notebooks](https://jupyter-notebook-beginner-guide.readthedocs.io/en/latest/what_is_jupyter.html#id5) explaining how we explored developing this project and understanding the data. Jupyter notebooks are a way of having code, descriptive text, and output together in one document to present a narrative around data exploration. 
+
+If you're interested in a Data Dictionary, [click here](doc/DataDictionary.md) (it's also in the `doc/` folder.
 
 ## Data Flow and Data Structure
 
