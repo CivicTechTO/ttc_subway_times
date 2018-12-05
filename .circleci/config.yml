@@ -27,6 +27,9 @@ jobs:
     steps:
       - tox:
           env: py35
+      - store_artifacts:
+          path: ~/repo/htmlcov
+          destination: py35
 
   py36:
     docker:
@@ -35,6 +38,9 @@ jobs:
     steps:
       - tox:
           env: py36
+      - store_artifacts:
+          path: ~/repo/htmlcov
+          destination: py36
 
   py37:
     docker:
@@ -45,6 +51,9 @@ jobs:
       - run: apt-get install -y build-essential
       - tox:
           env: py37
+      - store_artifacts:
+          path: ~/repo/htmlcov
+          destination: py37
 
 
 workflows:
