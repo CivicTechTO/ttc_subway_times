@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import uuid1
 import tarfile
 from io import BytesIO
 import gzip
@@ -93,7 +93,7 @@ class WriteS3(object):
         self.ntas_records.append(record_row)
 
     def add_poll_start(self, time):
-        poll_id = str(uuid4())
+        poll_id = str(uuid1())
         self.polls[poll_id] = {"start": str(time)}
 
         return poll_id
@@ -102,7 +102,7 @@ class WriteS3(object):
         self.polls[poll_id]["end"] = str(time)
 
     def add_request_info(self, request_row):
-        request_id = str(uuid4())
+        request_id = str(uuid1())
 
         self.requests.append(request_row)
 
