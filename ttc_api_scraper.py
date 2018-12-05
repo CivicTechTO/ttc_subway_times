@@ -4,7 +4,6 @@ import logging
 import logging.config
 import re
 import os
-import pytz
 import subprocess
 import sys
 from datetime import datetime
@@ -14,6 +13,7 @@ from concurrent.futures._base import TimeoutError
 import aiohttp  # this lib replaces requests for asynchronous i/o
 import click
 from psycopg2 import connect, sql  # Connect to local PostgreSQL db
+import pytz
 import requests  # to handle http requests to the API
 
 from writers import WriteS3, WriteSQL
