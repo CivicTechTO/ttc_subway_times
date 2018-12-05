@@ -2,7 +2,7 @@ from __future__ import generator_stop
 
 from click.testing import CliRunner
 
-from ttc_api_scraper import cli
+from ttc_api_scraper.ttc_api_scraper import cli
 
 
 def test_help():
