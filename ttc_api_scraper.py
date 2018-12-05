@@ -4,6 +4,7 @@ import logging
 import logging.config
 import re
 import os
+import pytz
 import subprocess
 import sys
 from datetime import datetime
@@ -253,7 +254,7 @@ class TTCSubwayScraper( object ):
 
         for attempt in range(retries):
             try:
-                rtime = datetime.now()
+                rtime = datetime.now(pytz.timezone("America/Toronto"))
                 async with session.get(self.BASE_URL, params=payload, timeout=5, raise_for_status=True) as resp:
                     #data = None
                     try:
@@ -326,7 +327,7 @@ class TTCSubwayScraper( object ):
 
     async def query_all_stations_async(self, loop):
 
-            poll_id = self.insert_poll_start(datetime.now())
+            poll_id = self.insert_poll_start(datetime.now(pytz.timezone("America/Toronto")))
 
             # run requests simultaneously using asyncio
             async with aiohttp.ClientSession() as session:
@@ -347,12 +348,12 @@ class TTCSubwayScraper( object ):
 
                     self.insert_ntas_data(data['ntasData'], request_id)
 
-            self.update_poll_end( poll_id, datetime.now() )
+            self.update_poll_end( poll_id, datetime.now(pytz.timezone("America/Toronto")) )
             self.writer.commit()
 
     def query_all_stations(self):
 
-        poll_id = self.insert_poll_start( datetime.now() )
+        poll_id = self.insert_poll_start( datetime.now(pytz.timezone("America/Toronto")) )
         retries = 3
 
         for line_id, stations in self.LINES.items():
@@ -373,10 +374,13 @@ class TTCSubwayScraper( object ):
                     errmsg = 'No data for line {line}, station {station}'
                     self.logger.error(errmsg.format(line=line_id, station=station_id))
                     continue    
-                request_id = self.insert_request_info(poll_id, data, line_id, station_id, datetime.now() )
+                request_id = self.insert_request_info(poll_id, data, line_id, station_id,
+                                                      datetime.now(pytz.timezone("America/Toronto")
+                                                                   )
+                                                      )
                 self.insert_ntas_data(data['ntasData'], request_id)
 
-        self.update_poll_end( poll_id, datetime.now() )
+        self.update_poll_end( poll_id, datetime.now(pytz.timezone("America/Toronto")) )
         self.writer.commit()
 
 @click.group()
