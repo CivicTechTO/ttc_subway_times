@@ -466,8 +466,9 @@ def main():
     cli(obj={})
 
 if __name__ == '__main__':
-    try:
-        main()
-    except Exception as err:
-        LOGGER.critical("Unhandled exception - quitting.")
-        LOGGER.critical(err)
+    main()
+    # try:
+    #     main()
+    # except Exception as err:
+    #     LOGGER.critical("Unhandled exception - quitting.")
+    #     LOGGER.critical(err)

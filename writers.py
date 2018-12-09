@@ -1,4 +1,4 @@
-from uuid import uuid1
+from uuid import uuid4
 import tarfile
 from io import BytesIO
 import gzip
@@ -81,32 +81,44 @@ class WriteSQL(object):
 
 class WriteS3(object):
     def __init__(self, bucket_name):
-        self.ntas_records = []
-        self.requests = []
+        self.request_poll_id={}
+
+        self.output_jsons = {}
+
+        self.ntas_records = {}
+        self.requests = {}
         self.polls = {}
 
         self.bucket_name = bucket_name
 
-        self.s3 = boto3.resource("s3")
+        self.s3 = boto3.client('s3')
 
     def add_ntas_record(self, record_row):
-        self.ntas_records.append(record_row)
+        request_id = record_row['requestid']
+        poll_id = self.request_poll_id[request_id]
+
+        x = {i: record_row[i] for i in record_row if i != 'requestid'}
+        self.output_jsons[poll_id]['requests'][request_id]['responses'].append(x)
 
     def add_poll_start(self, time):
-        poll_id = str(uuid1())
-        self.polls[poll_id] = {"start": str(time)}
+
+        poll_id = str(uuid4())
+
+        self.output_jsons[poll_id] = {"pollid": poll_id, "start": str(time), "requests":{}}
 
         return poll_id
 
     def add_poll_end(self, poll_id, time):
-        self.polls[poll_id]["end"] = str(time)
+        self.output_jsons[poll_id]["end"]=str(time)
 
     def add_request_info(self, request_row):
-        request_id = str(uuid1())
+        request_id = str(uuid4())
+        poll_id = request_row['pollid']
 
-        self.requests.append(request_row)
+        self.request_poll_id[request_id] = poll_id
 
-        self.requests[-1]["request_id"] = request_id
+        self.output_jsons[poll_id]['requests'][request_id] = {i: request_row[i] for i in request_row if i != 'pollid'}
+        self.output_jsons[poll_id]['requests'][request_id]['responses'] = []
         return request_id
 
     @staticmethod
@@ -135,52 +147,21 @@ class WriteS3(object):
 
         tz = pytz.timezone("America/Toronto")
         toronto_now = datetime.datetime.now(tz)
-        # Tar does not like colons at all so lets replace them with underscores, and spaces
-        # just confuse everyone so they can become dots
         toronto_now_str=str(toronto_now).replace(':', '_').replace(' ', '.')
 
         service_date = self._service_day(toronto_now)
 
-        filename = "{servicedate}/{timestamp}.tar.gz".format(
-            servicedate=service_date, timestamp=str(toronto_now_str)
-        )
+        for pollid, poll in self.output_jsons.items():
+            poll.pop('pollid', None)
+            poll['requests']=[v for _, v in poll['requests'].items()]
 
-        # Note that this temporary file is a bit of a hack, for some reason the tarfile library
-        # if using w:gz with a BytesIO results in a corrupt gzip file. Specifying a temporary
-        # filename seems to resolve this problem. TODO: Fix this, it's ugly
-        f = tempfile.NamedTemporaryFile(delete=False)
-
-        tar = tarfile.open(name=f.name, mode="w:gz")
-
-        string, tar_info = self.string_to_tarfile(toronto_now_str+"/ntas.json", json.dumps(self.ntas_records))
-        tar.addfile(tarinfo=tar_info, fileobj=string)
-
-        string, tar_info = self.string_to_tarfile(toronto_now_str+"/requests.json", json.dumps(self.requests))
-        tar.addfile(tarinfo=tar_info, fileobj=string)
-
-        string, tar_info = self.string_to_tarfile(toronto_now_str+"/polls.json", json.dumps(self.polls))
-        tar.addfile(tarinfo=tar_info, fileobj=string)
-
-
-        tar.close()
+        out = json.dumps([v for k,v in self.output_jsons.items()])
 
         try:
-            self.s3.Bucket(self.bucket_name).upload_file(f.name, filename)
-            os.remove(f.name)
+            self.s3.put_object(
+                Bucket=self.bucket_name,
+                Body=out,
+                Key=f'{service_date}/{toronto_now_str}.json'
+            )
         except ClientError:
             LOGGER.critical("Error writing to S3")
-
-        self.ntas_records = []
-        self.requests = []
-        self.polls = {}
-
-    def string_to_tarfile(self, name, string):
-        encoded = string.encode("utf-8")
-        s = BytesIO(encoded)
-
-        tar_info = tarfile.TarInfo(name=name)
-        tar_info.size = len(encoded)
-        tar_info.mtime = time.time()
-        tar_info.size = len(encoded)
-
-        return s, tar_info
