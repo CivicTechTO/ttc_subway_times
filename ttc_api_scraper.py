@@ -399,7 +399,7 @@ def cli(ctx, settings='db.cfg'):
 @click.option('--postgres/--no-postgres', default=False)
 @click.option('--filtering/--no-filtering', default=False)
 @click.option('-s','--schemaname', default='public')
-@click.option('--bucketname',default='rvilim.ttc.scrape')
+@click.option('--bucketname',default='ttc.scrape')
 def scrape(ctx, s3, postgres, filtering, schemaname, bucketname):
     '''Run the scraper'''
 

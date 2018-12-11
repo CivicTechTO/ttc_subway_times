@@ -8,7 +8,7 @@ import datetime
 import logging
 import os
 import tempfile
-
+from io import StringIO
 import boto3
 from botocore.exceptions import ClientError
 import pytz
@@ -155,13 +155,17 @@ class WriteS3(object):
             poll.pop('pollid', None)
             poll['requests']=[v for _, v in poll['requests'].items()]
 
-        out = json.dumps([v for k,v in self.output_jsons.items()])
+        out = BytesIO()
+
+        with gzip.GzipFile(fileobj=out, mode="wb") as f:
+            f.write(json.dumps([v for _, v in self.output_jsons.items()]).encode('utf-8'))
+        out.seek(0)
 
         try:
             self.s3.put_object(
                 Bucket=self.bucket_name,
                 Body=out,
-                Key=f'{service_date}/{toronto_now_str}.json'
+                Key=f'{service_date}/{toronto_now_str}.json.gz'
             )
         except ClientError:
             LOGGER.critical("Error writing to S3")
