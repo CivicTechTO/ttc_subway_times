@@ -23,7 +23,7 @@ functions:
     handler: ttc_api_scraper.handler
     events:
       - schedule:
-          rate: cron(20 4 * * ? *)
+          rate: cron(20 3 * * ? *)
           timezone: America/Toronto
     environment:
       S3_BUCKET: ${self:custom.bucket}
