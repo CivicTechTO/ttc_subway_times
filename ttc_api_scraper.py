@@ -199,13 +199,13 @@ class TTCSubwayScraper( object ):
                 continue # skip any records that are Arriving or not final
             record_row ={}
             record_row['requestid'] = request_id
-            record_row['id'] = record['id']
+            record_row['id'] = str(record['id'])
             record_row['station_char'] = record['stationId']
             record_row['subwayline'] = record['subwayLine']
             record_row['system_message_type'] = record['systemMessageType']
-            record_row['timint'] = record['timeInt']
+            record_row['timint'] = str(record['timeInt'])
             record_row['traindirection'] = record['trainDirection']
-            record_row['trainid'] = record['trainId']
+            record_row['trainid'] = str(record['trainId'])
             record_row['train_message'] = record['trainMessage']
             record_row['train_dest'] = record['stationDirectionText']
 
@@ -466,9 +466,9 @@ def main():
     cli(obj={})
 
 if __name__ == '__main__':
-    main()
-    # try:
-    #     main()
-    # except Exception as err:
-    #     LOGGER.critical("Unhandled exception - quitting.")
-    #     LOGGER.critical(err)
+
+    try:
+        main()
+    except Exception as err:
+        LOGGER.critical("Unhandled exception - quitting.")
+        LOGGER.critical(err)

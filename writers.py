@@ -85,10 +85,6 @@ class WriteS3(object):
 
         self.output_jsons = {}
 
-        self.ntas_records = {}
-        self.requests = {}
-        self.polls = {}
-
         self.bucket_name = bucket_name
 
         self.s3 = boto3.client('s3')
@@ -141,9 +137,8 @@ class WriteS3(object):
 
         :return:
         """
-        LOGGER.info(
-            "Writing {nrecords} records to S3".format(nrecords=len(self.ntas_records))
-        )
+
+        LOGGER.info("Writing records to S3")
 
         tz = pytz.timezone("America/Toronto")
         toronto_now = datetime.datetime.now(tz)
@@ -155,17 +150,11 @@ class WriteS3(object):
             poll.pop('pollid', None)
             poll['requests']=[v for _, v in poll['requests'].items()]
 
-        out = BytesIO()
-
-        with gzip.GzipFile(fileobj=out, mode="wb") as f:
-            f.write(json.dumps([v for _, v in self.output_jsons.items()]).encode('utf-8'))
-        out.seek(0)
-
         try:
             self.s3.put_object(
                 Bucket=self.bucket_name,
-                Body=out,
-                Key=f'{service_date}/{toronto_now_str}.json.gz'
+                Body=json.dumps([v for _, v in self.output_jsons.items()]),
+                Key=f'{service_date}/{toronto_now_str}.json'
             )
         except ClientError:
             LOGGER.critical("Error writing to S3")
