@@ -5,7 +5,7 @@ psycopg2~=2.7
 requests==2.12.4
 boto3==1.9
 pytz
-awscli
+boto3
 
 # if using jupyter notebooks
 #jupyter==1.0.0

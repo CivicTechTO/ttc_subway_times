@@ -1,4 +1,7 @@
 import os
+import errno
+import boto3
+import os
 import logging
 import sys
 import pytz
@@ -6,7 +9,7 @@ import subprocess
 
 import datetime
 import tempfile
-
+import tarfile
 
 handlers=[logging.StreamHandler()]
 if os.environ.get('LOG_FILENAME'):
@@ -33,36 +36,71 @@ def _service_day(datetimestamp, servicedayhour=4):
     return datetimestamp.date()
 
 def consolidate():
-    if os.environ.get('S3_BUCKET') is None:
-        LOGGER.critical("S3_BUCKET environmental variable is not set")
-        sys.exit(1)
-
     s3_bucket = os.environ.get('S3_BUCKET')
     tz = pytz.timezone("America/Toronto")
     consoli_date = str(datetime.datetime.now(tz).date()-datetime.timedelta(days=1))
 
+    if os.environ.get('S3_BUCKET') is None:
+        LOGGER.critical("S3_BUCKET environmental variable is not set")
+        sys.exit(1)
+
+    client = boto3.client('s3')
     with tempfile.TemporaryDirectory() as dir:
 
         scrape_path = os.path.join(dir, consoli_date)
 
-        cmds=[
-            ['aws', 's3', 'sync', f's3://{s3_bucket}/{consoli_date}', f'{scrape_path}'],
-            ['tar', '-czf', f'{scrape_path}.tar.gz', '-C' , dir, consoli_date],
-            ['aws', 's3', 'cp', f'{scrape_path}.tar.gz', f's3://{s3_bucket}'],
-            # f'aws s3 rm s3://{s3_bucket}/{consoli_date} --recursive --dryrun'
-        ]
+        LOGGER.info('Downloading files')
+        download_dir(client, s3_bucket, f'{consoli_date}/', scrape_path)
 
-        for cmd in cmds:
-            print(cmd)
-            try:
-                logging.info(f'Running {cmd}')
-                r = subprocess.call(cmd)
-                if r != 0:
-                    raise subprocess.CalledProcessError(r, cmd)
+        LOGGER.info('Tar.gzing files')
+        tar = tarfile.open(os.path.join(dir, f'{consoli_date}.tar.gz'), "w:gz")
+        tar.add(scrape_path, arcname=consoli_date)
+        tar.close()
 
-            except subprocess.CalledProcessError as e:
-                logging.critical(e)
-                return
+        LOGGER.info('Downloading tar.gz')
+        client.upload_file(os.path.join(dir, f'{consoli_date}.tar.gz'), s3_bucket,
+                           f'{consoli_date}.tar.gz')
+
+
+def assert_dir_exists(path):
+    """
+    Checks if directory tree in path exists. If not it created them.
+    :param path: the path to check if it exists
+    """
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
+
+def download_dir(client, bucket, path, target):
+    """
+    Downloads recursively the given S3 path to the target directory.
+    :param client: S3 client to use.
+    :param bucket: the name of the bucket to download from
+    :param path: The S3 directory to download.
+    :param target: the local directory to download the files to.
+    """
+
+    # Handle missing / at end of prefix
+    if not path.endswith('/'):
+        path += '/'
+
+    paginator = client.get_paginator('list_objects_v2')
+    for result in paginator.paginate(Bucket=bucket, Prefix=path):
+        # Download each file individually
+        for key in result['Contents']:
+            # Calculate relative path
+            rel_path = key['Key'][len(path):]
+            # Skip paths ending in /
+            if not key['Key'].endswith('/'):
+                local_file_path = os.path.join(target, rel_path)
+                # Make sure directories exist
+                local_file_dir = os.path.dirname(local_file_path)
+                assert_dir_exists(local_file_dir)
+                client.download_file(bucket, key['Key'], local_file_path)
+
 
 def handler(event, context):
     """Entry point for the AWS Lambda way of launching this script"""
@@ -72,5 +110,6 @@ def handler(event, context):
 def main():
     consolidate()
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
+
