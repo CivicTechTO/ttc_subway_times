@@ -1,13 +1,13 @@
 import errno
-import boto3
 import os
 import logging
 import sys
-import pytz
-
 import datetime
 import tempfile
 import tarfile
+
+import boto3
+import pytz
 
 handlers = [logging.StreamHandler()]
 if os.environ.get("LOG_FILENAME"):
@@ -44,28 +44,29 @@ def consolidate():
 
     client = boto3.client("s3")
     with tempfile.TemporaryDirectory() as dir:
+        targz_path = os.path.join(dir, "{consoli_date}.tar.gz".format(consoli_date=consoli_date))
 
         scrape_path = os.path.join(dir, consoli_date)
 
         LOGGER.info("Downloading files")
-        download_dir(client, s3_bucket, f"{consoli_date}/", scrape_path)
+        download_dir(client, s3_bucket, "{consoli_date}/".format(consoli_date=consoli_date), scrape_path)
 
         LOGGER.info("Tar.gzing files")
-        tar = tarfile.open(os.path.join(dir, f"{consoli_date}.tar.gz"), "w:gz")
+        tar = tarfile.open(targz_path, "w:gz")
         tar.add(scrape_path, arcname=consoli_date)
         tar.close()
 
         LOGGER.info("Downloading tar.gz")
         client.upload_file(
-            os.path.join(dir, f"{consoli_date}.tar.gz"),
+            targz_path,
             s3_bucket,
-            f"{consoli_date}.tar.gz",
+            "{consoli_date}.tar.gz".format(consoli_date=consoli_date),
         )
 
 
 def assert_dir_exists(path):
-    """
-    Checks if directory tree in path exists. If not it created them.
+    """ Will check if directory tree in path exists. If not it created it.
+
     :param path: the path to check if it exists
     """
     try:
@@ -76,8 +77,8 @@ def assert_dir_exists(path):
 
 
 def download_dir(client, bucket, path, target):
-    """
-    Downloads recursively the given S3 path to the target directory.
+    """ Will recursively download the given S3 path to the target directory.
+
     :param client: S3 client to use.
     :param bucket: the name of the bucket to download from
     :param path: The S3 directory to download.

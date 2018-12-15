@@ -145,10 +145,13 @@ class WriteS3(object):
             poll['requests']=[v for _, v in poll['requests'].items()]
 
         try:
+            s3_path = '{service_date}/{toronto_now_str}.json'.format(service_date=service_date,
+                                                                     toronto_now_str=toronto_now_str)
+
             self.s3.put_object(
                 Bucket=self.bucket_name,
                 Body=json.dumps([v for _, v in self.output_jsons.items()]),
-                Key=f'{service_date}/{toronto_now_str}.json'
+                Key=s3_path
             )
         except ClientError:
             LOGGER.critical("Error writing to S3")
