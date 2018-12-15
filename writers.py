@@ -1,14 +1,8 @@
 from uuid import uuid4
-import tarfile
-from io import BytesIO
-import gzip
 import json
-import time
 import datetime
 import logging
 import os
-import tempfile
-from io import StringIO
 import boto3
 from botocore.exceptions import ClientError
 import pytz

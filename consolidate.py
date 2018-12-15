@@ -1,22 +1,19 @@
-import os
 import errno
 import boto3
 import os
 import logging
 import sys
 import pytz
-import subprocess
 
 import datetime
 import tempfile
 import tarfile
 
-handlers=[logging.StreamHandler()]
-if os.environ.get('LOG_FILENAME'):
-    handlers.append(logging.FileHandler(os.environ.get('LOG_FILENAME')))
+handlers = [logging.StreamHandler()]
+if os.environ.get("LOG_FILENAME"):
+    handlers.append(logging.FileHandler(os.environ.get("LOG_FILENAME")))
 
-logging.basicConfig(format="%(asctime)-15s %(message)s",
-                    handlers=handlers)
+logging.basicConfig(format="%(asctime)-15s %(message)s", handlers=handlers)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,31 +32,35 @@ def _service_day(datetimestamp, servicedayhour=4):
 
     return datetimestamp.date()
 
-def consolidate():
-    s3_bucket = os.environ.get('S3_BUCKET')
-    tz = pytz.timezone("America/Toronto")
-    consoli_date = str(datetime.datetime.now(tz).date()-datetime.timedelta(days=1))
 
-    if os.environ.get('S3_BUCKET') is None:
+def consolidate():
+    s3_bucket = os.environ.get("S3_BUCKET")
+    tz = pytz.timezone("America/Toronto")
+    consoli_date = str(datetime.datetime.now(tz).date() - datetime.timedelta(days=1))
+
+    if os.environ.get("S3_BUCKET") is None:
         LOGGER.critical("S3_BUCKET environmental variable is not set")
         sys.exit(1)
 
-    client = boto3.client('s3')
+    client = boto3.client("s3")
     with tempfile.TemporaryDirectory() as dir:
 
         scrape_path = os.path.join(dir, consoli_date)
 
-        LOGGER.info('Downloading files')
-        download_dir(client, s3_bucket, f'{consoli_date}/', scrape_path)
+        LOGGER.info("Downloading files")
+        download_dir(client, s3_bucket, f"{consoli_date}/", scrape_path)
 
-        LOGGER.info('Tar.gzing files')
-        tar = tarfile.open(os.path.join(dir, f'{consoli_date}.tar.gz'), "w:gz")
+        LOGGER.info("Tar.gzing files")
+        tar = tarfile.open(os.path.join(dir, f"{consoli_date}.tar.gz"), "w:gz")
         tar.add(scrape_path, arcname=consoli_date)
         tar.close()
 
-        LOGGER.info('Downloading tar.gz')
-        client.upload_file(os.path.join(dir, f'{consoli_date}.tar.gz'), s3_bucket,
-                           f'{consoli_date}.tar.gz')
+        LOGGER.info("Downloading tar.gz")
+        client.upload_file(
+            os.path.join(dir, f"{consoli_date}.tar.gz"),
+            s3_bucket,
+            f"{consoli_date}.tar.gz",
+        )
 
 
 def assert_dir_exists(path):
@@ -84,22 +85,22 @@ def download_dir(client, bucket, path, target):
     """
 
     # Handle missing / at end of prefix
-    if not path.endswith('/'):
-        path += '/'
+    if not path.endswith("/"):
+        path += "/"
 
-    paginator = client.get_paginator('list_objects_v2')
+    paginator = client.get_paginator("list_objects_v2")
     for result in paginator.paginate(Bucket=bucket, Prefix=path):
         # Download each file individually
-        for key in result['Contents']:
+        for key in result["Contents"]:
             # Calculate relative path
-            rel_path = key['Key'][len(path):]
+            rel_path = key["Key"][len(path) :]
             # Skip paths ending in /
-            if not key['Key'].endswith('/'):
+            if not key["Key"].endswith("/"):
                 local_file_path = os.path.join(target, rel_path)
                 # Make sure directories exist
                 local_file_dir = os.path.dirname(local_file_path)
                 assert_dir_exists(local_file_dir)
-                client.download_file(bucket, key['Key'], local_file_path)
+                client.download_file(bucket, key["Key"], local_file_path)
 
 
 def handler(event, context):
@@ -107,9 +108,10 @@ def handler(event, context):
 
     consolidate()
 
+
 def main():
     consolidate()
 
+
 if __name__ == "__main__":
     main()
-
