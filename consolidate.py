@@ -65,7 +65,7 @@ def consolidate():
 
 
 def assert_dir_exists(path):
-    """ Will check if directory tree in path exists. If not it created it.
+    """Will check if directory tree in path exists. If not it created it.
 
     :param path: the path to check if it exists
     """
@@ -77,7 +77,7 @@ def assert_dir_exists(path):
 
 
 def download_dir(client, bucket, path, target):
-    """ Will recursively download the given S3 path to the target directory.
+    """Will recursively download the given S3 path to the target directory.
 
     :param client: S3 client to use.
     :param bucket: the name of the bucket to download from
