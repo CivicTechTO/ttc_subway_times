@@ -141,6 +141,9 @@ Tell Serverless which AWS creds you would like to use with
 
 `serverless config credentials --provider aws --key <AWS_ACCESS_KEY> --secret <AWS_SECRET_KEY>`
 
+Creating these credentials must be done through your AWS account. A good guide to this
+process can be found on the [Serverless Website](https://serverless.com/framework/docs/providers/aws/guide/credentials/)
+
 Finally deploy the function with 
 ```shell
 serverless deploy -v
