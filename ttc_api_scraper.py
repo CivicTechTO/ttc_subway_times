@@ -18,18 +18,6 @@ import requests  # to handle http requests to the API
 
 from writers import WriteS3, WriteSQL
 
-# Note - the package yarl, a dependency of aiohttp, breaks the library on version 0.9.4 and 0.9.5
-# So need to manually install 0.9.3 or try 0.9.6, which should fix the bug.
-# e.g. pip uninstall yarl; pip install yarl==0.9.3
-# see https://github.com/KeepSafe/aiohttp/issues/1635
-# Use virtualenv to avoid borking your system install of python
-
-# optimal performance may require installation of cchardet and aiodns packages
-# see  http://aiohttp.readthedocs.io/en/stable/index.html
-
-#Not used anymore
-class MissingDataException( TypeError):
-    pass
 
 handlers=[logging.StreamHandler()]
 if os.environ.get('LOG_FILENAME'):
