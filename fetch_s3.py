@@ -70,7 +70,7 @@ def jsons_to_csv(dir, output_dir, chunksize=2000):
 
             if filename is None:
                 continue
-            print(filename)
+
             pollid, requestid, p, r, resp = parse_json(filename, pollid, requestid)
             polls.extend(p)
             requests.extend(r)

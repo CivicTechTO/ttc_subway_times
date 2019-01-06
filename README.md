@@ -151,13 +151,35 @@ serverless deploy -v
 
 Logs are automatically persisted to Cloudwatch. 
 
+
+#### Data Storage
+The data on S3 is stored in a nested JSON format that reflects the SQL table format. 
+In this, the top level is a poll, which contains a list of requests, which contains a list of
+responses (ntas_data). 
+
+The JSONS are initially stored in top level directories which are named for the date
+the dates refer to the date that service started on. For example, 1am on December 
+15th will be grouped in the December 14th file). At the end of each service day a lambda function
+is run (sonsolidate.py) which aggregates the previous days JSONs into a single .tar.gz file and
+deletes the original.
+
 #### Data Retreival
 Data is stored in the s3://ttc.scrape bucket, the fetch_s3.py script can be used to automatically
 fetch and assemble this data. Its usage is 
 ```shell
 python3 fetch_s3.py --bucket ttc.scrape --start_date 2018-12-02 --end_date 2018-12-05   --output_dir out/
 ```
-If end date is om
+If end date is omitted it is taken to be the latest available date. This script only selects down 
+to the day.
+
+This will generate three CSVs in the --output_dir which can be copied into the Postgres database 
+with
+```SQL
+COPY polls FROM '/Users/ryanvilim/Desktop/polls.csv' DELIMITER ',' CSV HEADER;
+COPY requests FROM '/Users/ryanvilim/Desktop/requests.csv' DELIMITER ',' CSV HEADER;
+COPY ntas_data FROM '/Users/ryanvilim/Desktop/responses.csv' DELIMITER ',' CSV HEADER;
+```
+
 ### Cron
 If you would like to run it on your local machine, the best way to do it is to set
 up a cron to periodically run the scraper command. 
