@@ -1,18 +1,18 @@
 # coding: utf8
 import boto3
 import click
-import os
-import datetime
-import tempfile
-import tarfile
-from retrying import retry
-from joblib import Parallel, delayed
-import pandas as pd
-import ujson as json
 from collections import namedtuple
 import glob
+import os
+import datetime
 from itertools import zip_longest
+from joblib import Parallel, delayed
+import pandas as pd
+from retrying import retry
+import tempfile
+import tarfile
 from tqdm import tqdm
+import ujson as json
 
 Poll = namedtuple("Poll", ["pollid", "poll_start", "poll_end"])
 Request = namedtuple(
@@ -196,9 +196,5 @@ def fetch_s3(bucket, output_dir, start_date, end_date=None):
     fetch_and_transform(to_download, output_dir)
 
 
-def main():
-    fetch_s3()
-
-
 if __name__ == "__main__":
-    main()
+    fetch_s3()
