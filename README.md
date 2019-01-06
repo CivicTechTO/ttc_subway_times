@@ -151,6 +151,13 @@ serverless deploy -v
 
 Logs are automatically persisted to Cloudwatch. 
 
+#### Data Retreival
+Data is stored in the s3://ttc.scrape bucket, the fetch_s3.py script can be used to automatically
+fetch and assemble this data. Its usage is 
+```shell
+python3 fetch_s3.py --bucket ttc.scrape --start_date 2018-12-02 --end_date 2018-12-05   --output_dir out/
+```
+If end date is om
 ### Cron
 If you would like to run it on your local machine, the best way to do it is to set
 up a cron to periodically run the scraper command. 

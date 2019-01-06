@@ -7,6 +7,7 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 import pytz
+from retrying import retry
 
 
 LOGGER = logging.getLogger(__name__)
@@ -127,6 +128,7 @@ class WriteS3(object):
 
         return datetimestamp.date()
 
+    @retry(stop_max_attempt_number=5)
     def commit(self):
         """Tars, then gzips the files and uploads them to S3.
 
@@ -155,4 +157,5 @@ class WriteS3(object):
                 Key=s3_path
             )
         except ClientError:
-            LOGGER.critical("Error writing to S3")
+            LOGGER.critical("Error writing to S3, retrying")
+            raise ClientError
