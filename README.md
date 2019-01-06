@@ -74,15 +74,15 @@ of these must be chosen with either the --postgres or the --s3 flag.
 If the --s3 flag is set then the S3_BUCKET environmental variable must be set which specifies 
 the bucket. 
 
-This script generates JSONS of the results and puts them into 
-`S3://<AWS S3 BUCKET>/<SERVICE DATE>/<TIMESTAMP.tar.gz>`, where the service date is the date 
-that service started on (e.g. before the subway shutdown for the night).
+The data on S3 is stored in a nested JSON format that reflects the SQL table format. 
+In this, the top level is a poll, which contains a list of requests, which contains a list of
+responses (ntas_data). 
 
-These tarballs have three JSONS 
-
-- <TIMESTAMP>/ntas.json
-- <TIMESTAMP>/requests.json
-- <TIMESTAMP>/polls.json
+The JSONS are initially stored in top level directories which are named for the date
+the dates refer to the date that service started on. For example, 1am on December 
+15th will be grouped in the December 14th file). At the end of each service day a lambda function
+is run (consolidate.py) which aggregates the previous days JSONs into a single .tar.gz file and
+deletes the original.
 
 #### Postgres
 
@@ -152,18 +152,7 @@ serverless deploy -v
 Logs are automatically persisted to Cloudwatch. 
 
 
-#### Data Storage
-The data on S3 is stored in a nested JSON format that reflects the SQL table format. 
-In this, the top level is a poll, which contains a list of requests, which contains a list of
-responses (ntas_data). 
-
-The JSONS are initially stored in top level directories which are named for the date
-the dates refer to the date that service started on. For example, 1am on December 
-15th will be grouped in the December 14th file). At the end of each service day a lambda function
-is run (sonsolidate.py) which aggregates the previous days JSONs into a single .tar.gz file and
-deletes the original.
-
-#### Data Retreival
+#### Data Retrieval
 Data is stored in the s3://ttc.scrape bucket, the fetch_s3.py script can be used to automatically
 fetch and assemble this data. Its usage is 
 ```shell
