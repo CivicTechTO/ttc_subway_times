@@ -173,11 +173,11 @@ If end date is omitted it is taken to be the latest available date. This script 
 to the day.
 
 This will generate three CSVs in the --output_dir which can be copied into the Postgres database 
-with
+with the following SQL commands
 ```SQL
-COPY polls FROM '/Users/ryanvilim/Desktop/polls.csv' DELIMITER ',' CSV HEADER;
-COPY requests FROM '/Users/ryanvilim/Desktop/requests.csv' DELIMITER ',' CSV HEADER;
-COPY ntas_data FROM '/Users/ryanvilim/Desktop/responses.csv' DELIMITER ',' CSV HEADER;
+COPY polls FROM '/path/to/polls.csv' DELIMITER ',' CSV HEADER;
+COPY requests FROM '/path/to/requests.csv' DELIMITER ',' CSV HEADER;
+COPY ntas_data FROM '/path/to/responses.csv' DELIMITER ',' CSV HEADER;
 ```
 
 ### Cron
