@@ -156,12 +156,12 @@ Logs are automatically persisted to Cloudwatch.
 Data is stored in the s3://ttc.scrape bucket, the fetch_s3.py script can be used to automatically
 fetch and assemble this data. Its usage is 
 ```shell
-python3 fetch_s3.py --bucket ttc.scrape --start_date 2018-12-02 --end_date 2018-12-05   --output_dir out/
+python3 fetch_s3.py --bucket ttc.scrape --start_date 2018-12-02 --end_date 2018-12-05 --output_dir out/
 ```
 If end date is omitted it is taken to be the latest available date. This script only selects down 
 to the day.
 
-This will generate three CSVs in the --output_dir which can be copied into the Postgres database 
+This will generate three CSVs in the output_dir which can be copied into the Postgres database 
 with the following SQL commands
 ```SQL
 COPY polls FROM '/path/to/polls.csv' DELIMITER ',' CSV HEADER;
