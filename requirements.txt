@@ -6,9 +6,9 @@ requests==2.12.4
 boto3==1.9
 pytz
 boto3
-retrying==1.3
-joblib==0.13
-tqdm==4.28
+retrying~=1.3
+joblib==~.13
+tqdm~=4.28
 
 # if using jupyter notebooks
 #jupyter==1.0.0
