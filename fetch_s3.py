@@ -4,12 +4,12 @@ import glob
 import os
 import datetime
 from itertools import zip_longest
-from joblib import Parallel, delayed
 import tempfile
 import tarfile
 
 import boto3
 import click
+from joblib import Parallel, delayed
 import pandas as pd
 from retrying import retry
 from tqdm import tqdm
