@@ -1,16 +1,17 @@
 # coding: utf8
-import boto3
-import click
 from collections import namedtuple
 import glob
 import os
 import datetime
 from itertools import zip_longest
 from joblib import Parallel, delayed
-import pandas as pd
-from retrying import retry
 import tempfile
 import tarfile
+
+import boto3
+import click
+import pandas as pd
+from retrying import retry
 from tqdm import tqdm
 import ujson as json
 
