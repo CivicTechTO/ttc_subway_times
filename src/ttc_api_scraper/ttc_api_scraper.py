@@ -12,7 +12,7 @@ from concurrent.futures._base import TimeoutError
 
 import aiohttp  # this lib replaces requests for asynchronous i/o
 import click
-from psycopg2 import connect, sql  # Connect to local PostgreSQL db
+from psycopg2 import OperationalError, connect, sql  # Connect to local PostgreSQL db
 import pytz
 import requests  # to handle http requests to the API
 
@@ -137,8 +137,7 @@ class TTCSubwayScraper( object ):
              4: range(64, 69)}
     BASE_URL = "http://www.ttc.ca/Subway/loadNtas.action"
     INTERCHANGES = (9,10,22,30,47,48,50,64) 
-    #BASE_URL = 'http://www.ttc.ca/Subway/'
-   
+
     def __init__(self, logger, writer, filter_flag):
         self.logger = logger
         self.filter_flag = filter_flag
@@ -371,6 +370,20 @@ class TTCSubwayScraper( object ):
         self.update_poll_end( poll_id, datetime.now(pytz.timezone("America/Toronto")) )
         self.writer.commit()
 
+
+def _connection(ctx, retries=3, delay=3):
+    for idx in range(retries):
+        attempt = idx + 1
+        try:
+            return connect(**ctx.obj['dbset'])
+        except OperationalError as e:
+            if 'could not connect to server' not in str(e):
+                raise
+            if attempt == retries:
+                raise
+            LOGGER.debug("Cannot connect to db. Attempt {} of {}. Trying again in {}s".format(attempt, retries, delay))
+            sleep(delay)
+
 @click.group()
 @click.option('-d', '--settings', type=click.Path(exists=True), default='db.cfg')
 @click.pass_context
@@ -387,7 +400,7 @@ def cli(ctx, settings='db.cfg'):
 @click.option('--postgres/--no-postgres', default=False)
 @click.option('--filtering/--no-filtering', default=False)
 @click.option('-s','--schemaname', default='public')
-@click.option('--bucketname',default='ttc.scrape')
+@click.option('--bucketname')
 def scrape(ctx, s3, postgres, filtering, schemaname, bucketname):
     '''Run the scraper'''
 
@@ -396,20 +409,25 @@ def scrape(ctx, s3, postgres, filtering, schemaname, bucketname):
         sys.exit(1)
 
     if postgres:
-        con = connect(**ctx.obj['dbset'])
+        con = _connection(ctx)
         writer = WriteSQL(schemaname, con)
 
     if s3:
+        if bucketname is None:
+            LOGGER.critical("Bucket name not set.")
+            sys.exit(1)
+
         writer = WriteS3(bucketname)
 
-    scraper = TTCSubwayScraper(LOGGER, writer, filtering)
+    try:
+        scraper = TTCSubwayScraper(LOGGER, writer, filtering)
 
-    loop = asyncio.get_event_loop()
-    future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
-    loop.run_until_complete( future )
-
-    if postgres:
-        con.close()
+        loop = asyncio.get_event_loop()
+        future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
+        loop.run_until_complete( future )
+    finally:
+        if postgres:
+            con.close()
 
 @cli.command()
 @click.pass_context
@@ -431,9 +449,6 @@ def archive(ctx, month, end_month):
 
 def handler(event, context):
     """Entry point for the AWS Lambda way of launching this script"""
-
-    CONFIG = configparser.ConfigParser(interpolation=None)
-    CONFIG.read('db.cfg')
 
     if os.environ.get('S3_BUCKET') is None:
         LOGGER.critical("S3_BUCKET environmental variable is not set")
@@ -459,4 +474,4 @@ if __name__ == '__main__':
         main()
     except Exception as err:
         LOGGER.critical("Unhandled exception - quitting.")
-        LOGGER.critical(err)
+        LOGGER.critical(err, exc_info=True)
