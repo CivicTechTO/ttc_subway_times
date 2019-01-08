@@ -16,7 +16,7 @@ from psycopg2 import OperationalError, connect, sql  # Connect to local PostgreS
 import pytz
 import requests  # to handle http requests to the API
 
-from writers import WriteS3, WriteSQL
+from ttc_api_scraper.writers import WriteS3, WriteSQL
 
 
 handlers=[logging.StreamHandler()]
