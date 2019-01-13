@@ -76,14 +76,17 @@ class WriteSQL(object):
 
 
 class WriteS3(object):
-    def __init__(self, bucket_name):
+    def __init__(self, bucket_name, aws_access_key=None, aws_secret_access_key=None):
         self.request_poll_id={}
 
         self.output_jsons = {}
 
         self.bucket_name = bucket_name
 
-        self.s3 = boto3.client('s3')
+        if aws_access_key==aws_secret_access_key and (aws_access_key is None):
+            self.s3 = boto3.client('s3')
+        else:
+            self.s3 = boto3.client('s3', aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_access_key)
 
     def add_ntas_record(self, record_row):
         request_id = record_row['requestid']
