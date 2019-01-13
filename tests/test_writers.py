@@ -5,7 +5,7 @@ import pytz
 
 import datetime
 import json
-
+import os
 
 @mock_s3
 def test_service_day():
@@ -22,6 +22,9 @@ def test_service_day():
 
 @mock_s3
 def test_writer():
+    os.environ["AWS_ACCESS_KEY"] = "mymockaccesskey"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "mymocksecretkey"
+
     bucketname = 'testbucket'
     x=WriteS3(bucketname)
 
