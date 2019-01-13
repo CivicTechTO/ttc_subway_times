@@ -1,9 +1,11 @@
 from ttc_api_scraper.writers import WriteS3
+
 from moto import mock_s3
+import pytz
 
 import datetime
 import json
-import pytz
+
 
 @mock_s3
 def test_service_day():
@@ -19,7 +21,7 @@ def test_service_day():
     assert x._service_day(datetime.datetime(2018, 10, 1, 5, 5, tzinfo=tz), servicedayhour=5) == datetime.date(2018, 10, 1)
 
 @mock_s3
-def test_service_day():
+def test_writer():
     bucketname = 'testbucket'
     x=WriteS3(bucketname)
 
@@ -46,7 +48,7 @@ def test_service_day():
     written_data=json.loads(x.s3.get_object(
         Bucket=bucketname,
         Key=s3_path
-    )['Body'].read())
+    )['Body'].read().decode("utf-8"))
 
     expected=[
         {
@@ -67,4 +69,3 @@ def test_service_day():
     ]
 
     assert written_data==expected, 'Problem with the data written to S3'
-

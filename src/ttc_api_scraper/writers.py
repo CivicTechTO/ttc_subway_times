@@ -131,7 +131,7 @@ class WriteS3(object):
 
     @retry(stop_max_attempt_number=5)
     def commit(self, timestamp = None, timezone="America/Toronto"):
-        """Uploads the files to S3
+        """Will upload our collected polls and responses to S3
 
         :return:
         """
@@ -149,7 +149,6 @@ class WriteS3(object):
             s3_path = '{service_date}/{timestamp_str}.json'.format(service_date=service_date,
                                                                    timestamp_str=timestamp_str)
 
-            print(s3_path)
             self.s3.put_object(
                 Bucket=self.bucket_name,
                 Body=json.dumps([v for _, v in self.output_jsons.items()]),
