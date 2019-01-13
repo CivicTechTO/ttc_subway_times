@@ -111,6 +111,7 @@ class WriteS3(object):
 
         self.output_jsons[poll_id]['requests'][request_id] = {i: request_row[i] for i in request_row if i != 'pollid'}
         self.output_jsons[poll_id]['requests'][request_id]['responses'] = []
+
         return request_id
 
     @staticmethod
@@ -129,33 +130,30 @@ class WriteS3(object):
         return datetimestamp.date()
 
     @retry(stop_max_attempt_number=5)
-    def commit(self):
-        """Tars, then gzips the files and uploads them to S3.
+    def commit(self, timestamp = None, timezone="America/Toronto"):
+        """Uploads the files to S3
 
         :return:
         """
 
         LOGGER.info("Writing records to S3")
 
-        tz = pytz.timezone("America/Toronto")
-        toronto_now = datetime.datetime.now(tz)
-        toronto_now_str=str(toronto_now).replace(':', '_').replace(' ', '.')
+        if timestamp is None:
+            tz = pytz.timezone(timezone)
+            timestamp = datetime.datetime.now(tz)
 
-        service_date = self._service_day(toronto_now)
-
-        for pollid, poll in self.output_jsons.items():
-            poll.pop('pollid', None)
-            poll['requests']=[v for _, v in poll['requests'].items()]
+        timestamp_str = str(timestamp).replace(':', '_').replace(' ', '.')
+        service_date = self._service_day(timestamp)
 
         try:
-            s3_path = '{service_date}/{toronto_now_str}.json'.format(service_date=service_date,
-                                                                     toronto_now_str=toronto_now_str)
+            s3_path = '{service_date}/{timestamp_str}.json'.format(service_date=service_date,
+                                                                   timestamp_str=timestamp_str)
 
+            print(s3_path)
             self.s3.put_object(
                 Bucket=self.bucket_name,
                 Body=json.dumps([v for _, v in self.output_jsons.items()]),
                 Key=s3_path
             )
-        except ClientError:
-            LOGGER.critical("Error writing to S3, retrying")
-            raise ClientError
+        except ClientError as e:
+            LOGGER.critical("Error writing to S3, retrying: {e}".format(e=e))
