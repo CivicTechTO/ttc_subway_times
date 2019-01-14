@@ -55,12 +55,12 @@ def test_writer():
             "start": "2018-10-01 12:00:00-05:18",
             "end": "2018-10-01 12:02:00-05:18",
             "requests": [{
-                    "content": "resquestcontent",
-                    "responses": [
-                        {
-                            "content": "ntascontent"
-                        }
-                    ]
+                "content": "resquestcontent",
+                "responses": [
+                    {
+                        "content": "ntascontent"
+                    }
+                ]
             }]
         }
     ]
