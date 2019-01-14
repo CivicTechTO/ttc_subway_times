@@ -52,19 +52,16 @@ def test_writer():
 
     expected=[
         {
-            "pollid": pollid,
             "start": "2018-10-01 12:00:00-05:18",
-            "requests": {
-                requestid: {
+            "end": "2018-10-01 12:02:00-05:18",
+            "requests": [{
                     "content": "resquestcontent",
                     "responses": [
                         {
                             "content": "ntascontent"
                         }
                     ]
-                }
-            },
-            "end": "2018-10-01 12:02:00-05:18"
+            }]
         }
     ]
 

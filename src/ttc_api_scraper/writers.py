@@ -148,13 +148,19 @@ class WriteS3(object):
         timestamp_str = str(timestamp).replace(':', '_').replace(' ', '.')
         service_date = self._service_day(timestamp)
 
+        o = self.output_jsons.copy()
+
+        for pollid, poll in o.items():
+            poll.pop('pollid', None)
+            poll['requests']=[v for _, v in poll['requests'].items()]
+
         try:
             s3_path = '{service_date}/{timestamp_str}.json'.format(service_date=service_date,
                                                                    timestamp_str=timestamp_str)
 
             self.s3.put_object(
                 Bucket=self.bucket_name,
-                Body=json.dumps([v for _, v in self.output_jsons.items()]),
+                Body=json.dumps([v for _, v in o.items()]),
                 Key=s3_path
             )
         except ClientError as e:
