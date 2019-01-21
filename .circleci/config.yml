@@ -63,4 +63,4 @@ workflows:
       - linters
       - py35
       - py36
-      - py37
+      # - py37  # skip testing on 3.7 for now
