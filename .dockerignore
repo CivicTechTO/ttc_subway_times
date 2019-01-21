@@ -1,5 +1,6 @@
 *
 !src/*
 !db-docker.cfg
+!db.cfg
 !requirements*
 !scripts/*
