@@ -9,7 +9,6 @@ services:
   scraper:
     build:
       context: .
-    command: ["scrape"]
     depends_on:
       - db
     volumes:

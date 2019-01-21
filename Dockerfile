@@ -15,7 +15,9 @@ COPY ./requirements.txt /opt/ttc/subway_times/
 RUN pip install -r requirements.txt
 
 # Copy source code
-COPY . /opt/ttc/subway_times/
+COPY src /opt/ttc/subway_times/src
+COPY db-docker.cfg db-docker.cfg
 
-ENTRYPOINT ["python", "ttc_api_scraper.py", "--settings=db-docker.cfg", "--postgres"]
-CMD ["--help"]
+ENV PYTHONPATH src
+
+ENTRYPOINT ["python", "-m", "ttc_api_scraper.ttc_api_scraper", "-d", "db-docker.cfg", "scrape", "--postgres"]
