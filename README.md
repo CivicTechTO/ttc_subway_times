@@ -70,7 +70,9 @@ This allows us to run this code without having to spin up/monitor for an instanc
 ### Setup
 In addition to installing the Python requirements (above) we need to install the Serverless framework with npm by running `npm install` in the project root. 
 
-Move serverless.yml.template to serverless.yml and replace the bucket name with the actual values
+The template serverless.yml is configured to use dev and prod environments. This will create functions with dev- or prod- prepended to them, and will also direct output to the buckets that are defined in the custom section
+
+Move serverless.yml.template to serverless.yml and replace the angle bracketed bucket names with the actual values
 
 At the time of writing the schedule line in serverless.yml is set as
 
@@ -86,10 +88,13 @@ Tell Serverless which AWS creds you would like to use with
 Creating these credentials must be done through your AWS account. A good guide to this
 process can be found on the [Serverless Website](https://serverless.com/framework/docs/providers/aws/guide/credentials/)
 
+
 Finally deploy the function with 
 ```shell
 serverless deploy -v
 ```
+This command will deploy to the dev environment by default, the environment can be specified on the command line with the --stage flag (acceptable values for this project are dev and prod)
+
 Logs are automatically persisted to Cloudwatch.
 
 ### Consolidate Function

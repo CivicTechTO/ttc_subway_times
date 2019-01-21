@@ -2,54 +2,62 @@ service: ttc-subway-times
 
 provider:
   name: aws
-  runtime: python3.6
+  runtime: python3.7
   timeout: 300
+  stage: ${opt:stage, 'dev'}
   iamRoleStatements:
     - Effect: Allow
       Action:
         - s3:PutObject
         - s3:GetObject
         - s3:ListBucket
-      Resource: "arn:aws:s3:::${self:custom.bucket}/*"
+      Resource: "arn:aws:s3:::${self:custom.bucket.${self:provider.stage}}/*"
 
 package:
   exclude:
     - "**"
   include: # Specify the directories and files which should be included in the deployment package
-    - writers.py
-    - ttc_api_scraper.py
-    - consolidate.py
+    - src/ttc_api_scraper/writers.py
+    - src/ttc_api_scraper/ttc_api_scraper.py
+    - src/ttc_api_scraper/consolidate.py
     - db.cfg
 
 functions:
   ttc_api_scrape:
+    name: ${self:provider.stage}-ttc_api-scrape
     handler: src/ttc_api_scraper/ttc_api_scraper.handler
     events:
       - schedule:
           rate: cron(* 0-2,5-23 * * ? *)
           timezone: America/Toronto
     environment:
-      S3_BUCKET: ${self:custom.bucket}
+      S3_BUCKET: ${self:custom.bucket.${self:provider.stage}}
       LOG_LEVEL: INFO
-      PYTHONPATH: src/ttc_api_scraper/
+      PYTHONPATH: src/
 
   consolidate:
+    name: ${self:provider.stage}-consolidate
     handler: src/ttc_api_scraper/consolidate.handler
     events:
       - schedule:
           rate: cron(20 4 * * ? *)
           timezone: America/Toronto
     environment:
-      S3_BUCKET: ${self:custom.bucket}
+      S3_BUCKET: ${self:custom.bucket.${self:provider.stage}}
       LOG_LEVEL: INFO
-      PYTHONPATH: src/ttc_api_scraper/
+      PYTHONPATH: src/
 
 plugins:
   - serverless-python-requirements
   - serverless-local-schedule
-
 custom:
+
   pythonRequirements:
     dockerizePip: true
 
-  bucket: <AWS S3 BUCKET>
+  suffix-dev: .dev
+  suffix-prod:
+
+  bucket:
+    dev: <AWS DEV S3 BUCKET>
+    prod: <AWS PROD S3 BUCKET>
