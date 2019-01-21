@@ -1,9 +1,10 @@
 # coding: utf8
 from collections import namedtuple
-import glob
-import os
 import datetime
+import glob
 from itertools import zip_longest
+import json
+import os
 import tempfile
 import tarfile
 
@@ -13,7 +14,6 @@ from joblib import Parallel, delayed
 import pandas as pd
 from retrying import retry
 from tqdm import tqdm
-import ujson as json
 
 Poll = namedtuple("Poll", ["pollid", "poll_start", "poll_end"])
 Request = namedtuple(
