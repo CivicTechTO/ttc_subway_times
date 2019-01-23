@@ -135,7 +135,8 @@ class TTCSubwayScraper( object ):
                                                           #Line 1 extension is 75-80
              2: range(33, 64),
              4: range(64, 69)}
-    BASE_URL = "http://www.ttc.ca/Subway/loadNtas.action"
+
+    BASE_URL = "http://api.ttc.ca/Subway/loadNtas.action"
     INTERCHANGES = (9,10,22,30,47,48,50,64) 
 
     def __init__(self, logger, writer, filter_flag):
@@ -237,12 +238,17 @@ class TTCSubwayScraper( object ):
         retries = 4
         payload = {"subwayLine":line_id,
                        "stationId":station_id,
-                       "searchCriteria":''}
+                       "searchCriteria":'',
+                       "_": '1548199023829'}
 
         for attempt in range(retries):
             try:
                 rtime = datetime.now(pytz.timezone("America/Toronto"))
-                async with session.get(self.BASE_URL, params=payload, timeout=5, raise_for_status=True) as resp:
+                async with session.get(self.BASE_URL, params=payload, timeout=5,
+                                       headers={'User-Agent': 'Mozilla/5.0',
+                                                'Accept-Encoding': 'gzip, deflate, br',
+                                                'Referer': 'https://www.ttc.ca/Subway/next_train_arrivals.jsp'},
+                                       raise_for_status=True) as resp:
                     #data = None
                     try:
                         data = await resp.json()
@@ -255,8 +261,8 @@ class TTCSubwayScraper( object ):
                         continue
 
                     if self.check_for_missing_data(station_id, line_id, data):
-                        self.logger.debug("Missing data!")
-                        self.logger.debug("Try " + str(attempt+1) + " for station " + str(station_id) + " failed.")
+                        self.logger.error("Missing data!")
+                        self.logger.error("Try " + str(attempt+1) + " for station " + str(station_id) + " failed.")
                         if attempt < retries-1:
                             self.logger.debug("Sleeping 2s  ...")
                             await asyncio.sleep(2)
@@ -265,26 +271,26 @@ class TTCSubwayScraper( object ):
                     return (data, rtime)
             except aiohttp.client_exceptions.ClientConnectorError:
                 if attempt < retries - 1:
-                    self.logger.debug("Sleeping 2s  ...")
+                    self.logger.error("Sleeping 2s  ...")
                     await asyncio.sleep(2)
-                continue
+                # continue
 
             except aiohttp.client_exceptions.ClientResponseError as err:
-                self.logger.debug('Client response error')
-                self.logger.debug(err)
+                self.logger.error('Client response error')
+                self.logger.error(err)
 
                 if attempt < retries - 1:
-                    self.logger.debug("Sleeping 2s  ...")
+                    self.logger.error("Sleeping 2s  ...")
                     await asyncio.sleep(2)
-                continue
+                # continue
             except TimeoutError as err:
-                self.logger.debug('Timout Error')
-                self.logger.debug(err)
+                self.logger.error('Timout Error')
+                self.logger.error(err)
 
                 if attempt < retries - 1:
-                    self.logger.debug("Sleeping 2s  ...")
+                    self.logger.error("Sleeping 2s  ...")
                     await asyncio.sleep(2)
-                continue
+                # continue
 
         self.logger.error('Out of retries, could not fetch '
                           '{line_id}, {station_id}'.format(line_id=line_id, station_id=station_id))
@@ -422,9 +428,11 @@ def scrape(ctx, s3, postgres, filtering, schemaname, bucketname):
     try:
         scraper = TTCSubwayScraper(LOGGER, writer, filtering)
 
-        loop = asyncio.get_event_loop()
-        future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
-        loop.run_until_complete( future )
+        scraper.query_all_stations()
+
+        # loop = asyncio.get_event_loop()
+        # future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
+        # loop.run_until_complete( future )
     finally:
         if postgres:
             con.close()
@@ -459,10 +467,11 @@ def handler(event, context):
     writer = WriteS3(bucket_name)
 
     scraper = TTCSubwayScraper(LOGGER, writer, False)
+    scraper.query_all_stations()
 
-    loop = asyncio.get_event_loop()
-    future = asyncio.ensure_future(scraper.query_all_stations_async(loop))
-    loop.run_until_complete(future)
+    # loop = asyncio.get_event_loop()
+    # future = asyncio.ensure_future(scraper.query_all_stations_async(loop))
+    # loop.run_until_complete(future)
 
 def main():
     #https://github.com/pallets/click/issues/456#issuecomment-159543498
