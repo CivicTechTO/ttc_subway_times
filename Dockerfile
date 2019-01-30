@@ -8,14 +8,16 @@ RUN apk update \
 
 WORKDIR /opt/ttc/subway_times/
 
-# Cop requirements file
+# Copy requirements file
 COPY ./requirements.txt /opt/ttc/subway_times/
 
 # Install dependencies
 RUN pip install -r requirements.txt
 
 # Copy source code
-COPY . /opt/ttc/subway_times/
+COPY src /opt/ttc/subway_times/src
+COPY db-docker.cfg db-docker.cfg
 
-ENTRYPOINT ["python", "ttc_api_scraper.py", "--settings=db-docker.cfg"]
-CMD ["--help"]
+ENV PYTHONPATH src
+
+ENTRYPOINT ["python", "-m", "ttc_api_scraper.ttc_api_scraper", "-d", "db-docker.cfg", "scrape", "--postgres"]

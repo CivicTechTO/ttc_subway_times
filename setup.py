@@ -41,7 +41,7 @@ setup(
     setup_requires=setup_requires + pytest_runner,
     tests_require=tests_require,
     extras_require=extras_require,
-    python_requires='>=3.5.0,<3.7.0',
+    python_requires='>=3.5.0',
     entry_points='''
         [console_scripts]
         ttc_api_scraper=ttc_api_scraper.__init__:main

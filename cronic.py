@@ -6,7 +6,7 @@ from datetime import datetime
 
 def run_parallel():
     while True:
-        subprocess.Popen("python src/ttc_api_scraper/ttc_api_scraper.py scrape", shell=True)
+        subprocess.Popen("python src/ttc_api_scraper/ttc_api_scraper.py --postgres", shell = True)
         sleep(10)
 
 def run_blocking():
@@ -19,7 +19,7 @@ def run_blocking():
             print("After operating hours: " + str(st) + " -- Sleeping 5 mins.")
             continue
 
-        subprocess.run("python src/ttc_api_scraper/ttc_api_scraper.py scrape", shell=True)
+        subprocess.run("python src/ttc_api_scraper/ttc_api_scraper.py --postgres", shell = True)
         et = datetime.now()
         delta = et-st
         if(delta.seconds < period):
