@@ -58,7 +58,7 @@ There are two ways that the scraper can be automated, via Docker/cron, or via Se
 ## Storage Backends
 There are two ways the data can be stored once it has been scraped, AWS S3 and Postgres.
 
-AWS S3 stores each scrape in a JSON collected by service day (see Consolidate function). This requires an AWS account. This can be enabled by with the --s3 flag. The advantage of S3 is that it requires no persistant server, and is extremely cheap. Its main disadvantage is that the data is not as easily queryable as an SQL database and some steps are required before it can be queried in SQL (see [Analyzing the Data](Analyzing-the-Data)). This storage method is well suited to the AWS Lambda scraping mode.
+AWS S3 stores each scrape in a JSON collected by service day (see Consolidate function). This requires an AWS account. This can be enabled by with the --s3 flag. The advantage of S3 is that it requires no persistant server, and is extremely cheap. Its main disadvantage is that the data is not as easily queryable as an SQL database and some steps are required before it can be queried in SQL (see [Analyzing the Data](#analyzing-the-data)). This storage method is well suited to the AWS Lambda scraping mode.
 
 Postgres requires a running Postgres instance. While the data is immediately queryable, it requires a Postgres server to be always running, which increases the work, risk and cost of the project. This can be selected with the --postgres and is most often used with the Docker/Cron scraping mode.
 
