@@ -55,16 +55,19 @@ COPY ntas_data FROM '/path/to/responses.csv' DELIMITER ',' CSV HEADER;
 # Automating the Scraper Runs
 
 There are two ways that the scraper can be automated, via Docker/cron, or via Serverless with AWS Lambda. No matter how you choose to run it the scraper runs through ttc_scraper_api.py
+
 ## Storage Backends
+
 There are two ways the data can be stored once it has been scraped, AWS S3 and Postgres.
 
-AWS S3 stores each scrape in a JSON collected by service day (see Consolidate function). This requires an AWS account. This can be enabled by with the --s3 flag. The advantage of S3 is that it requires no persistant server, and is extremely cheap. Its main disadvantage is that the data is not as easily queryable as an SQL database and some steps are required before it can be queried in SQL (see [Analyzing the Data](#analyzing-the-data)). This storage method is well suited to the AWS Lambda scraping mode.
+AWS S3 stores each scrape in a JSON collected by service day (see Consolidate function). This requires an AWS account. This can be enabled by with the `--s3` flag. The advantage of S3 is that it requires no persistant server, and is extremely cheap. Its main disadvantage is that the data is not as easily queryable as an SQL database and some steps are required before it can be queried in SQL (see [Analyzing the Data](#analyzing-the-data)). This storage method is well suited to the AWS Lambda scraping mode.
 
-Postgres requires a running Postgres instance. While the data is immediately queryable, it requires a Postgres server to be always running, which increases the work, risk and cost of the project. This can be selected with the --postgres and is most often used with the Docker/Cron scraping mode.
+Postgres requires a running Postgres instance. While the data is immediately queryable, it requires a Postgres server to be always running, which increases the work, risk and cost of the project. This can be selected with the `--postgres` flag and is most often used with the Docker/Cron scraping mode.
 
 Both modes store the same data, in largely the same structure (nested JSONs vs tables with joinable keys).
 
 ## AWS Lambda Scraping
+
 There is a mode which will allow scraping via AWS Lambda with logging added to AWS Cloudwatch. This mode uses the Serverless framework.
 
 The [Serverless](https://serverless.com/) framework is a suite of tooling which allows the easy deployment and management of serverless code.
@@ -72,18 +75,10 @@ The [Serverless](https://serverless.com/) framework is a suite of tooling which 
 This allows us to run this code without having to spin up/monitor for an instance manually. And since we only pay for the code when it is running the compute costs are nearly zero.
 
 ### Setup
-In addition to installing the Python requirements (above) we need to install the Serverless framework with npm by running `npm install` in the project root. 
 
-The template serverless.yml is configured to use dev and prod environments. This will create functions with dev- or prod- prepended to them, and will also direct output to the buckets that are defined in the custom section
+In addition to installing the Python [requirements](requirements.txt) we need to install the [Serverless framework](https://serverless.com/) with [npm](https://www.npmjs.com/get-npm) ([install instructions for Ubuntu](https://www.digitalocean.com/community/tutorials/how-to-install-node-js-on-ubuntu-18-04) by running `npm install` in the project root. 
 
-Move serverless.yml.template to serverless.yml and replace the angle bracketed bucket names with the actual values
-
-At the time of writing the schedule line in serverless.yml is set as
-
-```yaml
-    rate: cron(* 0-2,5-23 * * ? *)
-```
-which means that it should run every minute from 5am to 2am every day. More information on this cron line can be found on the [AWS documentation](https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html), in this documentation references to UTC should be ignored, we use the 'serverless-local-schedule' package which allows us to specify crons in local time rather than UTC (otherwise the behaviour would change during daylight savings time).
+On Ubuntu you'll need to add the `serverless` binary to your `PATH` variable with `PATH="$PATH:/[PATH/TO]/ttc_subway_times/node_modules/serverless/bin/"` (replace `[PATH/TO]` with the absolute path to the repository). This will only be temporary for your session, if you're going to use `serverless` for other projects, you should probably install it globally with `sudo npm install -g`.
 
 Tell Serverless which AWS creds you would like to use with  
 
@@ -92,12 +87,24 @@ Tell Serverless which AWS creds you would like to use with
 Creating these credentials must be done through your AWS account. A good guide to this
 process can be found on the [Serverless Website](https://serverless.com/framework/docs/providers/aws/guide/credentials/)
 
+[Create an S3 bucket](https://s3.console.aws.amazon.com/s3/home). In your  
+
+The template `serverless.yml` is configured to use dev and prod environments. This will create functions with `dev-` or `prod-` prepended to them, and will also direct output to the buckets that are defined in the custom section
+
+Move `serverless.yml.template` to `serverless.yml` and replace the angle bracketed bucket names with the actual values.
+
+At the time of writing the schedule line in serverless.yml is set as
+
+```yaml
+    rate: cron(* 0-2,5-23 * * ? *)
+```
+which means that it should run every minute from 5am to 2am every day. More information on this cron line can be found on the [AWS documentation](https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html), in this documentation references to UTC should be ignored, we use the 'serverless-local-schedule' package which allows us to specify crons in local time rather than UTC (otherwise the behaviour would change during daylight savings time).
 
 Finally deploy the function with 
 ```shell
 serverless deploy -v
 ```
-This command will deploy to the dev environment by default, the environment can be specified on the command line with the --stage flag (acceptable values for this project are dev and prod)
+This command will deploy to the dev environment by default, the environment can be specified on the command line with the `--stage` flag (acceptable values for this project are `dev` and `prod`)
 
 Logs are automatically persisted to Cloudwatch.
 
