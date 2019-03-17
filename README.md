@@ -80,18 +80,20 @@ In addition to installing the Python [requirements](requirements.txt) we need to
 
 On Ubuntu you'll need to add the `serverless` binary to your `PATH` variable with `PATH="$PATH:/[PATH/TO]/ttc_subway_times/node_modules/serverless/bin/"` (replace `[PATH/TO]` with the absolute path to the repository). This will only be temporary for your session, if you're going to use `serverless` for other projects, you should probably install it globally with `sudo npm install -g`.
 
-Tell Serverless which AWS creds you would like to use with  
+Tell Serverless which AWS creds you would like to use with:
 
 `serverless config credentials --provider aws --key <AWS_ACCESS_KEY> --secret <AWS_SECRET_KEY>`
 
 Creating these credentials must be done through your AWS account. A good guide to this
 process can be found on the [Serverless Website](https://serverless.com/framework/docs/providers/aws/guide/credentials/)
 
-[Create an S3 bucket](https://s3.console.aws.amazon.com/s3/home). In your  
+#### Configure the `serverless.yml`
 
 The template `serverless.yml` is configured to use dev and prod environments. This will create functions with `dev-` or `prod-` prepended to them, and will also direct output to the buckets that are defined in the custom section
 
-Move `serverless.yml.template` to `serverless.yml` and replace the angle bracketed bucket names with the actual values.
+Move `serverless.yml.template` to `serverless.yml`.
+
+[Create an S3 bucket](https://s3.console.aws.amazon.com/s3/home). Replace the angle bracketed bucket names (under the `custom:` properties at the end of the document with the **names** of the buckets you created.
 
 At the time of writing the schedule line in serverless.yml is set as
 
@@ -99,6 +101,10 @@ At the time of writing the schedule line in serverless.yml is set as
     rate: cron(* 0-2,5-23 * * ? *)
 ```
 which means that it should run every minute from 5am to 2am every day. More information on this cron line can be found on the [AWS documentation](https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html), in this documentation references to UTC should be ignored, we use the 'serverless-local-schedule' package which allows us to specify crons in local time rather than UTC (otherwise the behaviour would change during daylight savings time).
+
+### Deploy
+
+You'll need to install docker for this step ([Ubuntu install instructions](https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-ubuntu-18-04)).
 
 Finally deploy the function with 
 ```shell
