@@ -1,0 +1,5 @@
+jupyter
+psycopg2-binary
+pandas
+matplotlib
+seaborn
