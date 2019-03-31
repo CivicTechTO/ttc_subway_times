@@ -320,29 +320,29 @@ class TTCSubwayScraper( object ):
 
     async def query_all_stations_async(self, loop):
 
-            poll_id = self.insert_poll_start(datetime.now(pytz.timezone("America/Toronto")))
+        poll_id = self.insert_poll_start(datetime.now(pytz.timezone("America/Toronto")))
 
-            # run requests simultaneously using asyncio
-            async with aiohttp.ClientSession() as session:
-                tasks = []
-                for line_id, stations in self.LINES.items():
-                    for station_id in stations:
+        # run requests simultaneously using asyncio
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for line_id, stations in self.LINES.items():
+                for station_id in stations:
 
-                        task = asyncio.ensure_future(self.query_station_async(session, line_id, station_id))
-                        tasks.append(task)
-                responses = await asyncio.gather(*tasks)
+                    task = asyncio.ensure_future(self.query_station_async(session, line_id, station_id))
+                    tasks.append(task)
+            responses = await asyncio.gather(*tasks)
 
-            for data, rtime in responses:
-                if data is not None:
-                    line_id = data['subwayLine']
-                    station_id = data['stationId']
+        for data, rtime in responses:
+            if data is not None:
+                line_id = data['subwayLine']
+                station_id = data['stationId']
 
-                    request_id = self.insert_request_info(poll_id, data, line_id, station_id, rtime)
+                request_id = self.insert_request_info(poll_id, data, line_id, station_id, rtime)
 
-                    self.insert_ntas_data(data['ntasData'], request_id)
+                self.insert_ntas_data(data['ntasData'], request_id)
 
-            self.update_poll_end( poll_id, datetime.now(pytz.timezone("America/Toronto")) )
-            self.writer.commit()
+        self.update_poll_end( poll_id, datetime.now(pytz.timezone("America/Toronto")) )
+        self.writer.commit()
 
     def query_all_stations(self):
 
