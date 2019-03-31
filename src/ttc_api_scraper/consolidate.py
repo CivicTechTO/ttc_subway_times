@@ -7,6 +7,7 @@ import tempfile
 import tarfile
 
 import boto3
+import click
 import pytz
 
 handlers = [logging.StreamHandler()]
@@ -32,15 +33,27 @@ def _service_day(datetimestamp, servicedayhour=4):
 
     return datetimestamp.date()
 
+@click.command()
+@click.option('--bucket', help='Name of the S3 Bucket')
+@click.option('--dt', help='Date to consolidate data (YYYY-MM-DD)')
+def consolidate(bucket=None, dt=None):
+    _consolidate(s3_bucket=bucket, dt=dt)
 
-def consolidate():
-    s3_bucket = os.environ.get("S3_BUCKET")
-    tz = pytz.timezone("America/Toronto")
-    consoli_date = str(datetime.datetime.now(tz).date() - datetime.timedelta(days=1))
+def _consolidate(s3_bucket=None, dt=None):
+    if s3_bucket is None:
+        s3_bucket = os.environ.get("S3_BUCKET")
 
-    if os.environ.get("S3_BUCKET") is None:
+    if s3_bucket is None:
         LOGGER.critical("S3_BUCKET environmental variable is not set")
         sys.exit(1)
+
+    tz = pytz.timezone("America/Toronto")
+    
+    if dt is None:
+        consoli_date = str(datetime.datetime.now(tz).date() - datetime.timedelta(days=1))
+    consoli_date = dt
+
+
 
     client = boto3.client("s3")
     with tempfile.TemporaryDirectory() as dir:
@@ -107,7 +120,7 @@ def download_dir(client, bucket, path, target):
 def handler(event, context):
     """Entry point for the AWS Lambda way of launching this script"""
 
-    consolidate()
+    _consolidate()
 
 
 def main():
