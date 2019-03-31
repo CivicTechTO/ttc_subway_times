@@ -12,9 +12,9 @@ provider:
         - s3:GetObject
       Resource: "arn:aws:s3:::${self:custom.bucket.${self:provider.stage}}/*"
     - Effect: Allow
-          Action:
-            - s3:ListBucket
-          Resource: "arn:aws:s3:::${self:custom.bucket.${self:provider.stage}}"
+      Action:
+        - s3:ListBucket
+      Resource: "arn:aws:s3:::${self:custom.bucket.${self:provider.stage}}"
 
 package:
   exclude:
