@@ -35,17 +35,12 @@ else:
 
 class DBArchiver (object):
     
-    SQLS = {'polls': sql.SQL('''COPY(SELECT * FROM public.polls 
-                                    WHERE poll_start >= {0}::DATE AND poll_start < {1}::DATE + INTERVAL '1 month')
-                                TO STDOUT WITH CSV HEADER'''),
-            'requests' : sql.SQL('''COPY (SELECT r.* FROM public.requests r
-                                          NATURAL JOIN public.polls
-                                          WHERE poll_start >= {0}::DATE AND poll_start < {1}::DATE + INTERVAL '1 month')
+    SQLS = {'requests' : sql.SQL('''COPY (SELECT r.* FROM public.requests r
+                                          WHERE request_date >= {0}::DATE AND request_date < {1}::DATE + INTERVAL '1 month')
                                      TO STDOUT WITH CSV HEADER'''),
             'ntas_data' : sql.SQL('''COPY (SELECT n.* FROM public.ntas_data n
                                         NATURAL JOIN public.requests 
-                                        NATURAL JOIN public.polls
-                                        WHERE poll_start >= {}::DATE AND poll_start < {}::DATE + INTERVAL '1 month')
+                                        WHERE request_date >= {}::DATE AND request_date < {}::DATE + INTERVAL '1 month')
                                      TO STDOUT WITH CSV HEADER''')
     }
     
