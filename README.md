@@ -36,6 +36,8 @@ For more info: review the API exploration notebook under [`doc/API_exploration.i
 
 # Analyzing the Data
 
+:warning: **We're not entirely sure how to make this work, you can get data by finding us in the `#transportation` channel on [Slack](https://civictechto-slack-invite.herokuapp.com/). If you think you can help with this, check out [issue #59](https://github.com/CivicTechTO/ttc_subway_times/issues/59)**
+
 Historical data is stored in the s3://ttc.scrape bucket, the fetch_s3.py script can be used to automatically fetch and assemble this data. Its usage is
 
 ```shell
