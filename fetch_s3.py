@@ -180,7 +180,7 @@ def parse_json(json_path, pollid, requestid):
 @click.option("--output_dir", help="The directory to output CSVs to", required=False)
 @click.option("--start_date", help="Start date in YYYY-MM-DD format")
 @click.option("--end_date", help="End date in YYYY-MM-DD format", required=False)
-def fetch_s3(bucket: str, aws_access_key_id: str, aws_secret_access_key: str, output_dir: str, start_date, end_date=None):
+def fetch_s3(aws_access_key_id: str, aws_secret_access_key: str, output_dir: str, start_date, end_date=None, bucket='ttc.scrape'):
     # create client using user-inputted creds
     client = boto3.client("s3", aws_access_key_id, aws_secret_access_key)
 
