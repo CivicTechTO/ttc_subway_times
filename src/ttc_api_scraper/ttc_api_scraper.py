@@ -242,8 +242,7 @@ class TTCSubwayScraper( object ):
                 async with session.get(self.BASE_URL, params=payload, timeout=5,
                                        headers={'User-Agent': 'Mozilla/5.0',
                                                 'Accept-Encoding': 'gzip, deflate, br',
-                                                'Referer': 'https://www.ttc.ca/Subway/next_train_arrivals.jsp'},
-                                       raise_for_status=True) as resp:
+                                                'Referer': 'https://www.ttc.ca/Subway/next_train_arrivals.jsp'}) as resp:
                     #data = None
                     try:
                         data = await resp.json()
@@ -319,7 +318,7 @@ class TTCSubwayScraper( object ):
 
         # run requests simultaneously using asyncio
         connector = aiohttp.TCPConnector(limit_per_host=5)
-        async with aiohttp.ClientSession(connector=connector) as session:
+        async with aiohttp.ClientSession(connector=connector, raise_for_status=True) as session:
             tasks = []
             for line_id, stations in self.LINES.items():
                 for station_id in stations:
