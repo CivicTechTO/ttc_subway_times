@@ -1,6 +1,5 @@
 import asyncio
 import configparser
-import logging
 import logging.config
 import re
 import os
@@ -33,6 +32,7 @@ if os.environ.get('LOG_LEVEL'):
 else:
     LOGGER.setLevel(getattr(logging, 'INFO'))
 
+
 class DBArchiver (object):
     
     SQLS = {'requests' : sql.SQL('''COPY (SELECT r.* FROM public.requests r
@@ -49,11 +49,11 @@ class DBArchiver (object):
         self.con = con
     
     def compress(self, filename):
-        '''Compress the given filename'''
+        """Compress the given filename"""
         subprocess.run(['gzip', filename])
     
     def pull_data_to_csv(self, table, month):
-        '''Download data for the specified month and table to a csv'''
+        """Download data for the specified month and table to a csv"""
         query = self.SQLS[table].format(sql.Literal(month), sql.Literal(month))
         filename = table+'_'+month+'.csv'
         with self.con:
@@ -62,7 +62,7 @@ class DBArchiver (object):
                     cur.copy_expert(query, f)
 
     def archive_month(self, month):
-        '''Pull and comrpess the given month of data for all tables'''
+        """Pull and comrpess the given month of data for all tables"""
         for table in self.SQLS.keys():
             LOGGER.info('Pulling data for table: %s', table)
             self.pull_data_to_csv(table, month)
@@ -71,7 +71,7 @@ class DBArchiver (object):
 
     @staticmethod
     def format_month(yyyy, mm):
-        dd='01'
+        dd = '01'
         if mm < 10:
             return str(yyyy)+'-0'+str(mm)+'-'+dd
         return str(yyyy)+'-'+str(mm)+'-'+dd
@@ -111,7 +111,7 @@ class DBArchiver (object):
             raise ValueError('Start date {yyyymm1} after end date {yyyymm2}'
                             .format(yyyymm1=yyyymmrange[0], yyyymm2=yyyymmrange[1]))
         
-        #Iterate over years and months
+        # Iterate over years and months
         if yyyy[0] == yyyy[1]:
             years[yyyy[0]] = range(mm[0], mm[1]+1, step)
         else:
@@ -126,8 +126,8 @@ class DBArchiver (object):
                     
 
 class TTCSubwayScraper( object ):
-    LINES = {1: list(range(1, 33)) + list(range(75, 81)), #max value must be 1 greater
-                                                          #Line 1 extension is 75-80
+    LINES = {1: list(range(1, 33)) + list(range(75, 81)), # max value must be 1 greater
+                                                          # Line 1 extension is 75-80
              2: range(33, 64),
              4: range(64, 69)}
 
@@ -161,14 +161,15 @@ class TTCSubwayScraper( object ):
         return r.json()
 
     def insert_request_info(self, poll_id, data, line_id, station_id, request_date):
-        request_row = {}
-        request_row['pollid'] = poll_id
-        request_row['request_date'] = str(request_date)
-        request_row['data_'] = data['data']
-        request_row['stationid'] = station_id
-        request_row['lineid'] = line_id
-        request_row['all_stations'] = data['allStations']
-        request_row['create_date'] = data['ntasData'][0]['createDate'].replace('T', ' ')
+        request_row = {
+            'pollid': poll_id,
+            'request_date': str(request_date),
+            'data_': data['data'],
+            'stationid': station_id,
+            'lineid': line_id,
+            'all_stations': data['allStations'],
+            'create_date': data['ntasData'][0]['createDate'].replace('T', ' ')
+        }
 
         request_id = self.writer.add_request_info(request_row)
         self.logger.debug("Request " + str(request_id) + ": " + str(request_row))
@@ -180,36 +181,36 @@ class TTCSubwayScraper( object ):
         for record in ntas_data:
             if self.filter_flag and record['trainMessage'] == "Arriving":
                 continue # skip any records that are Arriving or not final
-            record_row ={}
-            record_row['requestid'] = request_id
-            record_row['id'] = str(record['id'])
-            record_row['station_char'] = record['stationId']
-            record_row['subwayline'] = record['subwayLine']
-            record_row['system_message_type'] = record['systemMessageType']
-            record_row['timint'] = str(record['timeInt'])
-            record_row['traindirection'] = record['trainDirection']
-            record_row['trainid'] = str(record['trainId'])
-            record_row['train_message'] = record['trainMessage']
-            record_row['train_dest'] = record['stationDirectionText']
+            record_row ={
+                'requestid': request_id,
+                'id': str(record['id']),
+                'station_char': record['stationId'],
+                'subwayline': record['subwayLine'],
+                'system_message_type': record['systemMessageType'],
+                'timint': str(record['timeInt']),
+                'traindirection': record['trainDirection'],
+                'trainid': str(record['trainId']),
+                'train_message': record['trainMessage'],
+                'train_dest': record['stationDirectionText']
+            }
 
             self.writer.add_ntas_record(record_row)
 
     def insert_poll_start(self, time):
 
         poll_id = self.writer.add_poll_start(time)
-        self.logger.debug("Poll " + str(poll_id) + " started at " + str(time) )
+        self.logger.debug("Poll " + str(poll_id) + " started at " + str(time))
         return poll_id
 
     def update_poll_end(self, poll_id, time):
         self.writer.add_poll_end(poll_id, time)
-        self.logger.debug("Poll " + str(poll_id) + " ended at " + str(time) )
-
+        self.logger.debug("Poll " + str(poll_id) + " ended at " + str(time))
 
     def check_for_missing_data( self, stationid, lineid, data):
         if data is None:
             return True
         ntasData = data.get('ntasData')
-        if ntasData is None or ntasData ==[] :
+        if ntasData is None or ntasData == []:
             return True
 
         # there is data, so do more careful checks
@@ -244,7 +245,6 @@ class TTCSubwayScraper( object ):
                                                 'Accept-Encoding': 'gzip, deflate, br',
                                                 'Referer': 'https://www.ttc.ca/Subway/next_train_arrivals.jsp'},
                                        raise_for_status=True) as resp:
-                    #data = None
                     try:
                         data = await resp.json()
                     except ValueError as err:
@@ -403,7 +403,7 @@ def cli(ctx, settings='db.cfg'):
 @click.option('-s','--schemaname', default='public')
 @click.option('--bucketname')
 def scrape(ctx, s3, postgres, filtering, schemaname, bucketname):
-    '''Run the scraper'''
+    """Run the scraper"""
 
     if s3 == postgres:
         LOGGER.critical("Must specify s3 or Postgres writers (not both, or neither).")
@@ -437,7 +437,7 @@ def scrape(ctx, s3, postgres, filtering, schemaname, bucketname):
 @click.argument('month')
 @click.argument('end_month', required=False)
 def archive(ctx, month, end_month):
-    '''Download month (YYYYMM) of data from database and compress it'''
+    """Download month (YYYYMM) of data from database and compress it"""
     con = connect(**ctx.obj['dbset']) 
     archive = DBArchiver(con)
 
@@ -449,6 +449,7 @@ def archive(ctx, month, end_month):
             LOGGER.info('Archiving month: %s-%s', year, mm)
             archive.archive_month(DBArchiver.format_month(year, mm))
     LOGGER.info('Archiving complete.')
+
 
 def handler(event, context):
     """Entry point for the AWS Lambda way of launching this script"""
@@ -468,9 +469,11 @@ def handler(event, context):
     # future = asyncio.ensure_future(scraper.query_all_stations_async(loop))
     # loop.run_until_complete(future)
 
+
 def main():
-    #https://github.com/pallets/click/issues/456#issuecomment-159543498
+    # https://github.com/pallets/click/issues/456#issuecomment-159543498
     cli(obj={})
+
 
 if __name__ == '__main__':
 
