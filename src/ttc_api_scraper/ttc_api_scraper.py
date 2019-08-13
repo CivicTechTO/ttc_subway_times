@@ -318,7 +318,8 @@ class TTCSubwayScraper( object ):
         poll_id = self.insert_poll_start(datetime.now(pytz.timezone("America/Toronto")))
 
         # run requests simultaneously using asyncio
-        async with aiohttp.ClientSession() as session:
+        connector = aiohttp.TCPConnector(limit_per_host=5)
+        async with aiohttp.ClientSession(connector=connector) as session:
             tasks = []
             for line_id, stations in self.LINES.items():
                 for station_id in stations:
@@ -423,11 +424,11 @@ def scrape(ctx, s3, postgres, filtering, schemaname, bucketname):
     try:
         scraper = TTCSubwayScraper(LOGGER, writer, filtering)
 
-        scraper.query_all_stations()
+        #scraper.query_all_stations()
 
-        # loop = asyncio.get_event_loop()
-        # future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
-        # loop.run_until_complete( future )
+        loop = asyncio.get_event_loop()
+        future = asyncio.ensure_future( scraper.query_all_stations_async(loop))
+        loop.run_until_complete( future )
     finally:
         if postgres:
             con.close()
@@ -462,11 +463,11 @@ def handler(event, context):
     writer = WriteS3(bucket_name)
 
     scraper = TTCSubwayScraper(LOGGER, writer, False)
-    scraper.query_all_stations()
+    #scraper.query_all_stations()
 
-    # loop = asyncio.get_event_loop()
-    # future = asyncio.ensure_future(scraper.query_all_stations_async(loop))
-    # loop.run_until_complete(future)
+    loop = asyncio.get_event_loop()
+    future = asyncio.ensure_future(scraper.query_all_stations_async(loop))
+    loop.run_until_complete(future)
 
 def main():
     #https://github.com/pallets/click/issues/456#issuecomment-159543498
