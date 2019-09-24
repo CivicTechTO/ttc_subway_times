@@ -62,8 +62,14 @@ def download_extract(bucket, file, dir):
 
 
 def grouper(iterable, n, fillvalue=None):
-    "Collect data into fixed-length chunks or blocks"
-    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
+    """
+    Collect data into fixed-length chunks or blocks
+    grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
+    :param iterable:
+    :param n:
+    :param fillvalue:
+    :return:
+    """
     args = [iter(iterable)] * n
     return zip_longest(*args, fillvalue=fillvalue)
 
@@ -169,11 +175,14 @@ def parse_json(json_path, pollid, requestid):
 
 @click.command()
 @click.option("--bucket")
+@click.option("--aws_access_key_id", help="Can be found in the Slack channel")
+@click.option("--aws_secret_access_key", help="Can be found in the Slack channel")
 @click.option("--output_dir", help="The directory to output CSVs to", required=False)
 @click.option("--start_date", help="Start date in YYYY-MM-DD format")
 @click.option("--end_date", help="End date in YYYY-MM-DD format", required=False)
-def fetch_s3(bucket, output_dir, start_date, end_date=None):
-    client = boto3.client("s3")
+def fetch_s3(aws_access_key_id: str, aws_secret_access_key: str, output_dir: str, start_date, end_date=None, bucket='ttc.scrape'):
+    # create client using user-inputted creds
+    client = boto3.client("s3", aws_access_key_id, aws_secret_access_key)
 
     start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d")
 
