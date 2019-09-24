@@ -11,6 +11,7 @@
     "serverless-shell": "^0.4.1"
   },
   "devDependencies": {
-    "serverless-local-schedule": "^0.1.6"
+    "serverless-local-schedule": "^0.1.6",
+    "serverless-python-requirements": "^5.0.0"
   }
 }
