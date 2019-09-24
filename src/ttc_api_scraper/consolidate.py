@@ -51,7 +51,8 @@ def _consolidate(s3_bucket=None, dt=None):
     
     if dt is None:
         consoli_date = str(datetime.datetime.now(tz).date() - datetime.timedelta(days=1))
-    consoli_date = dt
+    else:
+        consoli_date = dt
 
 
 
