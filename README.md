@@ -2,6 +2,12 @@
 
 This is a project implementing a ‘scraper’ to grab and publish TTC subway arrival times against citizen-led performance metrics analyzing service timeliness and reliability.  The end goal is to maintain and publish this performance dashboard building consensus on service quality betterment over public transit in Toronto.
 
+The Vision for this TTC dashboard is modeled after What’s in the New York Times
+How Unpredictable is Your Subway Commute? We’ll Show You – The New York Times
+https://www.nytimes.com/interactive/2019/07/08/upshot/nyc-subway-variability-calculator.html?smid=nytcore-ios-share
+Choose route clicking icon
+A detailed exploration of an important but overlooked part of commuting in the city: variability
+
 # State of the project
 
 We have a Python scraper running on AWS saving predicted subway arrivals since late February 2017.  We need to process this data to generate observed station arrival times for each train at each station.  There was a couple month hiatus in data scraping because the database was full between August and November, but the scraper is now continuing to hum along nicely.
@@ -209,3 +215,21 @@ Otherwise have a look at [open issues](https://github.com/CivicTechTO/ttc_subway
 
 Boldly following in [others' footsteps](https://blog.sammdot.ca/pockettrack-tracking-subway-trains-is-hard-9c8fdfb7fd3c?source=collection_home---4------0----------)
 See more on the [Resources page](https://github.com/CivicTechTO/ttc_subway_times/wiki/Resources)
+
+
+Initial Report views of DATA
+
+https://github.com/BohanX/ttc_subway_times/blob/master/doc/arrival_time_exploration_ver2.ipynb
+TTC Line 2 Arrival Time
+Issues (Fixed)
+1.	Size of requests and responses did not match
+2.	Duplicates (based on requestid) were found after merging
+3.	There might be missing data (see last graph)
+Things to improve
+1.
+Things improved
+1.	Remove Trains that are outside of service time
+2.	Trains should not be at 2 stations at the same time
+•	Trains arriving between 0 to 2min(new) were included
+•	New method to include more possible combinations (i.e. trains arriving in two directions at terminals)
+3.	Switch station id for transfer stations
