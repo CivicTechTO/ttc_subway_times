@@ -5,13 +5,15 @@ Created on Tue Oct 15 20:36:38 2019
 @author: erwin
 """
 
+####################################################################
+# This file runs algorithms included in arrival_time_exploration_All_Lines.ipynb
+# It dose not drop rows with Sort_error
+# But it outputs a txt file including the index of rows with Sort_error
+# so that they can be easily excluded
+
 import numpy as np;  # useful for many scientific computing in Python
 import pandas as pd; # primary data structure library
 import datetime; # datetime data
-
-# data from 201907.zip were used
-#responses = pd.read_csv('responses_2019-03.csv'); # import file
-#requests = pd.read_csv('requests_2019-03.csv'); # import file
 
 responses = pd.read_csv('responses.csv'); # import file
 requests = pd.read_csv('requests.csv'); # import file
@@ -20,71 +22,56 @@ requests = pd.read_csv('requests.csv'); # import file
 df = pd.merge(left=responses, right=requests, left_on='requestid',
                   right_on='requestid');
               
-              
-## Line 2 (BD) trains
-trains_BD = df[df['subwayline'] == 'BD'].copy();
-
 # separate date and time
-r_date = pd.to_datetime(trains_BD['request_date']);
+r_date = pd.to_datetime(df['request_date']);
 
-trains_BD['date'] = r_date.dt.date;
-trains_BD['time'] = r_date.dt.time;
+df['date'] = r_date.dt.date;
+df['time'] = r_date.dt.time;
 
 # On weekdays and Saturdays, trains run from about 6 a.m. until 1:30 a.m. 
 # On Sundays, they run from about 8 a.m. to 1:30 a.m.
 # Take data from 6am to 1:30am everyday
 
-trains_BD = trains_BD[(trains_BD['time']>=datetime.time( 6,0,0 )) |
-                      (trains_BD['time']<=datetime.time( 1,30,0 )) ];
+df = df[(df['time']>=datetime.time( 6,0,0 )) |
+                      (df['time']<=datetime.time( 1,30,0 )) ];
         
         
         
 # Find trains at station
-trains_BD_AtStation = trains_BD[trains_BD['train_message'] == 'AtStation'];
+df_AtStation = df[df['train_message'] == 'AtStation'];
 
 # Find trains arriving between 0 to 2 min exclusive
-trains_BD_Delayed = trains_BD[(trains_BD['train_message'] == 'Delayed') &
-                              (trains_BD['timint'] <2) &
-                              (trains_BD['timint'] >0)];
+df_Delayed = df[(df['train_message'] == 'Delayed') &
+                              (df['timint'] <2) &
+                              (df['timint'] >0)];
 
-trains_BD_Arriving = trains_BD[(trains_BD['train_message'] == 'Arriving') &
-                              (trains_BD['timint'] <2) &
-                              (trains_BD['timint'] >0)]; 
-
-                               
-## Concatenate three dataframes
-merged = pd.concat([trains_BD_AtStation, trains_BD_Arriving], axis=0);
-merged = pd.concat([merged, trains_BD_Delayed], axis=0);
-
+df_Arriving = df[(df['train_message'] == 'Arriving') &
+                              (df['timint'] <2) &
+                              (df['timint'] >0)]; 
+####################################################################
+# drop duplicates
+                 
 # If trains are arriving or delayed in two stations, 
 # keep the one takes shorter time to arrive or the first one
 
 # sort based on Time remaining until train arrives at station (timint)
-merged = pd.concat((trains_BD_AtStation.sort_values(
-        by=['timint']), trains_BD_Arriving.sort_values(by=['timint'])), axis=0);
+merged = pd.concat((df_AtStation.sort_values(
+        by=['timint']), df_Arriving.sort_values(by=['timint'])), axis=0);
         
-merged = pd.concat((merged, trains_BD_Delayed.sort_values(
+merged = pd.concat((merged, df_Delayed.sort_values(
         by=['timint'])), axis=0);
 l1 = len(merged); # store length for comparison
 
 ## Now it should be in the order AtStation / timint(ascending) -> Arriving / timint(ascending) -> Delayed / timint(ascending)
 # remove duplicates
-merged.drop_duplicates(subset=['trainid','create_date'],keep='first',inplace=True);
+merged.drop_duplicates(subset=['trainid','request_date'],keep='first',inplace=True);
 
 print('Number of duplicates = ', l1-len(merged));
 
-merged[merged.duplicated(subset=['trainid','create_date'], keep=False)]
+merged[merged.duplicated(subset=['trainid','create_date'], keep=False)];
 
-# Switch stationid
-merged.loc[df['stationid'] == 9, 'stationid'] = 47;
-merged.loc[df['stationid'] == 10, 'stationid'] = 48;
-merged.loc[df['stationid'] == 22, 'stationid'] = 50;
-
-# remove directionality in station_char
-merged['station_char'] = merged['station_char'].str[:-1];
-
-# sort
-merged.sort_values(by=['date','trainid','time'], inplace=True);
+################################################################
+# Drop unnecessary columns
 
 # check system_message_type to be Normal
 a = sorted(merged['system_message_type']);
@@ -105,6 +92,129 @@ if a[0] == a[-1]:
     merged.drop(['all_stations'],axis=1, inplace=True);
 else:
     print('all_stations coloumn is not all success');
+    
+# remove directionality in station_char
+merged['station_char'] = merged['station_char'].str[:-1];
+
+#######################################################################
+# Correct mislabeled rows
+
+# sort by trainid, request_date
+merged.sort_values(by=['trainid', 'request_date'], inplace=True);
+# reset index
+merged.reset_index(drop=True,inplace=True);
+# find incorrect assignments of subwayline and lineid
+AE = ((merged['subwayline'] == 'YUS' ) != (merged['lineid'] == 1)) | ( 
+    (merged['subwayline'] == 'BD' ) != (merged['lineid'] == 2)) | (
+    (merged['subwayline'] == 'SHEP' ) != (merged['lineid'] == 4));
+
+# create a list of trainid and date
+id_error =  merged['trainid'].loc[AE==True].unique();
+L = merged.loc[AE==True];
+# initiate some variables for debugging purposes
+line1_trains = 0;
+line2_trains = 0;
+line4_trains = 0;
+Sort_error = pd.Index([],dtype='int64');
+
+# run loop for each unique trainid, then unique date with this trainid
+# then test nearby stations for each line separately
+# then correct subwayline & lineid, switch station id 
+
+for i in id_error:
+    for j in L[L['trainid']==i]['date'].unique():
+            # check if the train stops at Dupont (DUP), Museum(MUS), 
+            # York Mills(YKM), North York Centre(NYC), Rosedale (ROS) Wellesley (WEL)
+            # if yes, then it is on line 1
+        if merged[(merged['trainid']==i) & (merged['date']==j)]['station_char'].str.contains(
+            'DUP|MUS|YKM|NYK|ROS|WEL').any():
+
+                # check if the train also stops on line 2 and 4
+            if merged[(merged['trainid']==i) & (merged['date']==j)]['station_char'].str.contains(
+                'BSS|BAU|BAT|SHE').any():
+                print('error in if line 1 section')
+                print('error in train', i)
+                Sort_error = Sort_error.append( merged[(merged['trainid']==i) & (merged['date']==j)].index);
+            # make correction
+            merged.loc[(merged['trainid']==i) & (merged['date']==j), 'subwayline'] = 'YUS';
+            merged.loc[(merged['trainid']==i) & (merged['date']==j), 'lineid'] = 1;
+            
+            # add counter
+            line1_trains = line1_trains +1;
+            
+        # check if the train stops at Bay station (BAU), Bathurst (BAT), Sherbourne (SHE)
+        # if yes, then it is on line 2
+        elif merged[(merged['trainid']==i) & (merged['date']==j)]['station_char'].str.contains('BAU|BAT|SHE').any():
+                # check if the train also stops on line 4 because we already checked for line 1 
+            if merged[(merged['trainid']==i) & (merged['date']==j)]['station_char'].str.contains(
+                'BSS').any():
+                print('error in elif line 2 section')
+                print('error in train', i)
+                Sort_error = Sort_error.append( merged[(merged['trainid']==i) & (merged['date']==j)].index);
+            
+            # make correction
+            merged.loc[(merged['trainid']==i) & (merged['date']==j), 'subwayline'] = 'BD';
+            merged.loc[(merged['trainid']==i) & (merged['date']==j), 'lineid'] = 2;
+            
+            # add counter
+            line2_trains = line2_trains +1;
+
+            # check if the train stops at Bessarion (BSS)
+            # if yes, then it is on line 4
+            # NO NEED to make additional checks
+        elif merged[(merged['trainid']==i) & (merged['date']==j)]['station_char'].str.contains('BSS').any():
+            
+            # make correction
+            merged.loc[(merged['trainid']==i) & (merged['date']==j), 'subwayline'] = 'SHEP';
+            merged.loc[(merged['trainid']==i) & (merged['date']==j), 'lineid'] = 4;
+                        
+             # add counter
+            line4_trains = line4_trains +1;
+
+        # if no, sorting error
+        else:
+            print('error in else section')
+            print('error in train', i)
+            Sort_error = Sort_error.append( merged[(merged['trainid']==i) & (merged['date']==j)].index);
+
+print('# of relabeled line 1 trains: ', line1_trains)
+print('# of relabeled line 2 trains: ', line2_trains)
+print('# of relabeled line 4 trains: ', line4_trains)            
+
+      
+########################################################################
+# Correct mislabeled 'stationid'
+
+# find and correct mislabeled stationid
+# line 1
+merged.loc[(merged['lineid']==1) & (merged['stationid'] == 47), 'stationid'] = 9;
+merged.loc[(merged['lineid']==1) & (merged['date']==j) & (merged['stationid'] == 48), 'stationid'] = 10;
+merged.loc[(merged['lineid']==1) & (merged['date']==j) & (merged['stationid'] == 50), 'stationid'] = 22;
+
+# line 2
+merged.loc[(merged['lineid']==2) & (merged['stationid'] == 9), 'stationid'] = 47;
+merged.loc[(merged['lineid']==2) & (merged['stationid'] == 10), 'stationid'] = 48;
+merged.loc[(merged['lineid']==2) & (merged['stationid'] == 22), 'stationid'] = 50;
+
+# line 4
+merged.loc[(merged['lineid']==4) & (merged['stationid'] == 30), 'stationid'] = 64;
+
+# sort by 'date','trainid','time'
+merged.sort_values(by=['lineid','date','trainid','time'], inplace=True);
+
+# reset index
+merged.reset_index(drop=True,inplace=True);
+
+###########################################################
+# output data files      
+
+# output dataframe as csv file
+merged.to_csv('merged_2019_04.csv');
+
+# output index as numpy npy file
+np.save('Sort_error_2019_04.npy', Sort_error.values);
+# Use the following code to open npy and convert into Int64Index object:
+# x = np.load('Sort_error_2019_04.npy')
+# x2 = pd.Index(x)
 
 
-# merged.to_csv('merged_2019_04.csv')
