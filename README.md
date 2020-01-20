@@ -6,7 +6,7 @@ This is a project implementing a ‘scraper’ to grab and publish TTC subway ar
 
 We have a Python scraper running on AWS saving predicted subway arrivals since late February 2017.  We need to process this data to generate observed station arrival times for each train at each station.  There was a couple month hiatus in data scraping because the database was full between August and November, but the scraper is now continuing to hum along nicely.
 
-We're still trying to process the predicted arrival times obtained from the API into reasonably reliable state.  This work is happening in a Jupyter Notebook [Filtering Observed Arrivals.ipynb](doc/Filtering%20Observed%20Arrivals.ipynb); it is mostly in SQL, despite being in a Python notebook.
+We're still trying to process the predicted arrival times obtained from the API into reasonably reliable state.  This work is happening in a Jupyter Notebook [Filtering Observed Arrivals.ipynb](doc/filtering_observed_arrivals.ipynb); it is mostly in SQL, despite being in a Python notebook.
 
 Take a look at [How to Get Involved](#how-to-get-involved) with your expertise. Feel free to follow along; your informed feedback will surely lead to better data.
 
