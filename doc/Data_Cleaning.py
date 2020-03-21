@@ -11,19 +11,26 @@ Created on Tue Oct 15 20:36:38 2019
 # But it outputs a txt file including the index of rows with Sort_error
 # so that they can be easily excluded
 
+######################################
+# Save print statements to txt file
+import sys;
+file = open('output_0.txt', 'a');
+sys.stdout = file;
+######################################
+
 import numpy as np;  # useful for many scientific computing in Python
 import pandas as pd; # primary data structure library
 import datetime; # datetime data
 
-responses = pd.read_csv('responses.csv'); # import file
-requests = pd.read_csv('requests.csv'); # import file
+responses = pd.read_csv('responses_09.csv'); # import file
+requests = pd.read_csv('requests_09.csv'); # import file
 
 # merge two dataframes
 df = pd.merge(left=responses, right=requests, left_on='requestid',
                   right_on='requestid');
               
 # separate date and time
-r_date = pd.to_datetime(df['request_date']);
+r_date = pd.to_datetime(df['create_date']);
 
 df['date'] = r_date.dt.date;
 df['time'] = r_date.dt.time;
@@ -41,13 +48,20 @@ df = df[(df['time']>=datetime.time( 6,0,0 )) |
 df_AtStation = df[df['train_message'] == 'AtStation'];
 
 # Find trains arriving between 0 to 2 min exclusive
-df_Delayed = df[(df['train_message'] == 'Delayed') &
-                              (df['timint'] <2) &
-                              (df['timint'] >0)];
+#df_Delayed = df[(df['train_message'] == 'Delayed') &
+#                              (df['timint'] <2) &
+#                              (df['timint'] >0)];
+#
+#df_Arriving = df[(df['train_message'] == 'Arriving') &
+#                              (df['timint'] <2) &
+#                              (df['timint'] >0)]; 
 
-df_Arriving = df[(df['train_message'] == 'Arriving') &
-                              (df['timint'] <2) &
-                              (df['timint'] >0)]; 
+# drop delayed and timint == 0
+df_Delayed = df[(df['train_message'] == 'Delayed') &
+                              (df['timint'] == 0)];
+
+df_Arriving = df[(df['train_message'] == 'Arriving')];
+
 ####################################################################
 # drop duplicates
                  
@@ -64,11 +78,12 @@ l1 = len(merged); # store length for comparison
 
 ## Now it should be in the order AtStation / timint(ascending) -> Arriving / timint(ascending) -> Delayed / timint(ascending)
 # remove duplicates
+# use request_date because there are three rows per request_date
 merged.drop_duplicates(subset=['trainid','request_date'],keep='first',inplace=True);
 
 print('Number of duplicates = ', l1-len(merged));
 
-merged[merged.duplicated(subset=['trainid','create_date'], keep=False)];
+# merged[merged.duplicated(subset=['trainid','create_date'], keep=False)];
 
 ################################################################
 # Drop unnecessary columns
@@ -99,8 +114,8 @@ merged['station_char'] = merged['station_char'].str[:-1];
 #######################################################################
 # Correct mislabeled rows
 
-# sort by trainid, request_date
-merged.sort_values(by=['trainid', 'request_date'], inplace=True);
+# sort by trainid, create_date
+merged.sort_values(by=['trainid', 'create_date'], inplace=True);
 # reset index
 merged.reset_index(drop=True,inplace=True);
 # find incorrect assignments of subwayline and lineid
@@ -108,9 +123,8 @@ AE = ((merged['subwayline'] == 'YUS' ) != (merged['lineid'] == 1)) | (
     (merged['subwayline'] == 'BD' ) != (merged['lineid'] == 2)) | (
     (merged['subwayline'] == 'SHEP' ) != (merged['lineid'] == 4));
 
-# create a list of trainid and date
-id_error =  merged['trainid'].loc[AE==True].unique();
-L = merged.loc[AE==True];
+# create a dataframe of trainid and date
+train_error = merged[['trainid','date']].loc[AE==True];
 # initiate some variables for debugging purposes
 line1_trains = 0;
 line2_trains = 0;
@@ -121,8 +135,8 @@ Sort_error = pd.Index([],dtype='int64');
 # then test nearby stations for each line separately
 # then correct subwayline & lineid, switch station id 
 
-for i in id_error:
-    for j in L[L['trainid']==i]['date'].unique():
+for i in train_error['trainid'].unique():
+    for j in train_error[train_error['trainid']==i]['date'].unique():
             # check if the train stops at Dupont (DUP), Museum(MUS), 
             # York Mills(YKM), North York Centre(NYC), Rosedale (ROS) Wellesley (WEL)
             # if yes, then it is on line 1
@@ -199,20 +213,15 @@ merged.loc[(merged['lineid']==2) & (merged['stationid'] == 22), 'stationid'] = 5
 # line 4
 merged.loc[(merged['lineid']==4) & (merged['stationid'] == 30), 'stationid'] = 64;
 
-# sort by 'date','trainid','time'
-merged.sort_values(by=['lineid','date','trainid','time'], inplace=True);
-
-# reset index
-merged.reset_index(drop=True,inplace=True);
-
 ###########################################################
-# output data files      
+# output data files    
+file.close();  
 
 # output dataframe as csv file
-merged.to_csv('merged_2019_04.csv');
+merged.to_csv('merged_2019_09.csv');
 
 # output index as numpy npy file
-np.save('Sort_error_2019_04.npy', Sort_error.values);
+np.save('Sort_error_2019_09.npy', Sort_error.values);
 # Use the following code to open npy and convert into Int64Index object:
 # x = np.load('Sort_error_2019_04.npy')
 # x2 = pd.Index(x)
